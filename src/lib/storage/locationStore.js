@@ -1,6 +1,14 @@
 const LOCATION_STORAGE_KEY = "the-yard-gym.locations.v1";
 const LEGACY_SCENARIO_STORAGE_KEY = "the-yard-gym.scenarios.v1";
 const LEGACY_MIGRATION_KEY = "the-yard-gym.locations.migratedLegacyScenarios";
+const LOCATION_SCHEDULE_STORAGE_KEY = "the-yard-gym.locationSchedule.v1";
+
+export const FIXED_LOCATIONS = [
+  { id: "livermore", locationName: "Livermore", projectedOpenDate: "2027-06-01" },
+  { id: "walnut-creek", locationName: "Walnut Creek", projectedOpenDate: "2028-06-01" },
+  { id: "pleasanton", locationName: "Pleasanton", projectedOpenDate: "2029-03-01" },
+  { id: "san-ramon", locationName: "San Ramon", projectedOpenDate: "2029-09-01" },
+];
 
 function readJson(key) {
   try {
@@ -15,9 +23,12 @@ function writeLocations(locations) {
   window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(locations));
 }
 
-function createId() {
-  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
-  return `location-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function normalizeLocationName(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function migrateLegacyScenarios() {
@@ -41,7 +52,7 @@ function migrateLegacyScenarios() {
   return migrated;
 }
 
-export function loadLocations() {
+function loadLocations() {
   return migrateLegacyScenarios().sort((a, b) => {
     const dateDelta =
       new Date(a.projectedOpenDate ?? "9999-12-31") - new Date(b.projectedOpenDate ?? "9999-12-31");
@@ -50,52 +61,41 @@ export function loadLocations() {
   });
 }
 
-export function saveLocationModel({ activeLocationId, locationMeta, assumptions, model }) {
-  const now = new Date().toISOString();
-  const locations = loadLocations();
-  const existing = locations.find((location) => location.id === activeLocationId);
-  const locationName = locationMeta.locationName.trim() || existing?.locationName || "Untitled Location";
-  const record = {
-    id: existing?.id ?? createId(),
-    entityType: "location",
-    isActive: existing?.isActive ?? true,
-    locationName,
-    scenarioName: locationMeta.scenarioName.trim() || existing?.scenarioName || "Base Case",
-    projectedOpenDate: locationMeta.projectedOpenDate || existing?.projectedOpenDate || "2027-01-01",
-    projectName: "The Yard Gym Opportunity",
-    modelName: "Single-Location Financial & Operations Model",
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-    assumptions,
-    outputs: {
-      totalInitialInvestment: model.totalInitialInvestment,
-      ownerInjection: model.ownerInjection,
-      loanAmount: model.loanAmount,
-      monthlyLoanPayment: model.monthlyLoanPayment,
-      month36: model.months[35],
-      preOpeningSummary: model.preOpeningMonths,
-      monthlySummary: model.months,
-      annualSummary: model.years,
-      corporateFinancing: {
-        entityName: "Hart Fitness, Inc.",
-        loanAmount: model.loanAmount,
-        monthlyLoanPayment: model.monthlyLoanPayment,
-      },
-    },
+export function loadLocationSchedule() {
+  const savedSchedule = readJson(LOCATION_SCHEDULE_STORAGE_KEY);
+  const savedById = new Map(savedSchedule.map((location) => [location.id, location.projectedOpenDate]));
+  const legacyByName = new Map(
+    loadLocations().map((location) => [normalizeLocationName(location.locationName), location.projectedOpenDate]),
+  );
+
+  return FIXED_LOCATIONS.map((location) => ({
+    ...location,
+    projectedOpenDate:
+      savedById.get(location.id) ??
+      legacyByName.get(normalizeLocationName(location.locationName)) ??
+      location.projectedOpenDate,
+  }));
+}
+
+export function saveLocationSchedule(locations) {
+  const schedule = FIXED_LOCATIONS.map((fixedLocation) => {
+    const location = locations.find((candidate) => candidate.id === fixedLocation.id);
+    return {
+      id: fixedLocation.id,
+      projectedOpenDate: location?.projectedOpenDate ?? fixedLocation.projectedOpenDate,
+    };
+  });
+  window.localStorage.setItem(LOCATION_SCHEDULE_STORAGE_KEY, JSON.stringify(schedule));
+  return loadLocationSchedule();
+}
+
+export function loadSharedLocationAssumptions(defaultAssumptions) {
+  const legacyLocations = loadLocations();
+  const matchingLegacyLocation =
+    legacyLocations.find((location) => normalizeLocationName(location.locationName) === "livermore") ??
+    legacyLocations[0];
+  return {
+    ...defaultAssumptions,
+    ...(matchingLegacyLocation?.assumptions ?? {}),
   };
-  const next = [record, ...locations.filter((location) => location.id !== record.id)];
-  writeLocations(next);
-  return record;
-}
-
-export function deleteLocation(id) {
-  const next = loadLocations().filter((location) => location.id !== id);
-  writeLocations(next);
-  return next;
-}
-
-export function setLocationActive(id, isActive) {
-  const next = loadLocations().map((location) => (location.id === id ? { ...location, isActive } : location));
-  writeLocations(next);
-  return next;
 }

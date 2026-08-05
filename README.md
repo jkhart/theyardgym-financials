@@ -1,6 +1,6 @@
 # The Yard Gym Financials
 
-Financial and wealth modeling app for The Yard Gym opportunity scenarios, including single-location operating models, a ROBS structure rollup, exit scenarios, and household wealth projections.
+Financial and wealth modeling app for The Yard Gym opportunity scenarios, including a shared location operating model for Livermore, Pleasanton, San Ramon, and Walnut Creek, a ROBS structure rollup, exit scenarios, and household wealth projections.
 
 ## Run Locally
 

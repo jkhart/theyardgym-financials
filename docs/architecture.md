@@ -6,44 +6,31 @@ This app is now structured so the model engine, UI, and persistence boundary are
 
 - `src/components/` contains React UI components.
 - `src/lib/model/` contains the financial model defaults, input schema, and calculation engine.
-- `src/lib/storage/` contains the persistence boundary for saved location models.
+- `src/lib/storage/` contains the persistence boundary for the fixed location schedule and browser-backed migrations.
 - `src/lib/formatting.js` centralizes currency, number, and percent formatting.
 
 ## Persistence Strategy
 
-Saved location models currently use `localStorage` through `src/lib/storage/locationStore.js`.
+The fixed location schedule and shared location assumptions currently use `localStorage` through `src/lib/storage/locationStore.js` and the app shell.
 
-The location model record shape is intentionally close to what a future database table or API resource would use:
+The portfolio has four hard-coded locations:
 
-```json
-{
-  "id": "uuid",
-  "entityType": "location",
-  "locationName": "Location 1",
-  "scenarioName": "Base Case",
-  "projectedOpenDate": "2027-01-01",
-  "projectName": "The Yard Gym Opportunity",
-  "modelName": "Financial & Operations Model",
-  "createdAt": "2026-07-22T00:00:00.000Z",
-  "updatedAt": "2026-07-22T00:00:00.000Z",
-  "assumptions": {},
-  "outputs": {}
-}
-```
+- Livermore
+- Walnut Creek
+- Pleasanton
+- San Ramon
 
-When the app moves to a real backend, replace the functions in `locationStore.js` with API calls while keeping the UI and model code mostly unchanged.
+Each location shares the same operating assumptions. The only per-location input is `projectedOpenDate`.
 
-Location records are autosaved. Creating a new location or editing location fields/assumptions creates or updates the active location record after a short debounce.
+When the app moves to a real backend, replace the storage functions with API calls while keeping the UI and model code mostly unchanged.
 
 ## Entity And Portfolio Modeling
 
-The app models Hart Fitness, Inc. as the parent/financing entity. Each saved location represents an operating location underneath the parent.
+The app models Hart Fitness, Inc. as the parent/financing entity. Each fixed location represents an operating location underneath the parent.
 
 Operating revenue and operating expenses belong to each location. Debt principal, interest, and debt service are tracked separately as Hart Fitness, Inc. financing tied to the location buildout.
 
-The active model remains a single-location operating model with allocated corporate financing. Saved location models can be rolled up into a Hart Fitness, Inc. portfolio summary.
-
-The current rollup is not fully calendarized; it sums each location's month-36 and annual outputs as if each location is viewed on its own operating timeline. The next step for a four-location buildout is a calendarized portfolio model that offsets each location by `projectedOpenDate` and then sums pre-opening investment, monthly revenue, expense, cash flow, and debt service by portfolio month.
+The active model remains a single-location operating view, but the assumption set is shared across all four locations. The Hart Fitness rollup calendarizes the four fixed locations by `projectedOpenDate` and sums pre-opening investment, monthly revenue, expense, cash flow, and debt service by portfolio month.
 
 Each location has a `projectedOpenDate`. The model starts operating Month 1 in that projected-open month. Initial investment outlays are scheduled evenly across the six months before opening, with owner-funded and debt-funded portions split according to the owner injection percentage.
 
@@ -56,7 +43,7 @@ Likely tables:
 - `projects`
 - `models`
 - `locations`
-- `location_model_versions`
+- `location_assumption_versions`
 - `portfolio_models`
 - `analysis_sources`
 - `analysis_artifacts`

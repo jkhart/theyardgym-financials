@@ -308,12 +308,12 @@ footer {
 
 .locationItem {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px 30px;
-  gap: 6px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
   border: 1px solid #eee8df;
   border-radius: 7px;
-  padding: 4px;
+  padding: 8px;
   background: #faf7ef;
 }
 
@@ -325,6 +325,10 @@ footer {
 .locationItem.inactive {
   background: #f4f1ea;
   opacity: 0.68;
+}
+
+.locationDateField {
+  grid-template-columns: minmax(0, 1fr) 130px;
 }
 
 .locationLoad {

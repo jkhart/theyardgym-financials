@@ -7,14 +7,21 @@ import { getPortfolioSummary } from "./PortfolioSummary.jsx";
 import { money, num, pct } from "../lib/formatting.js";
 import { calculateModel } from "../lib/model/calculateModel.js";
 import { DEFAULT_ASSUMPTIONS } from "../lib/model/defaults.js";
-import { deleteLocation, loadLocations, saveLocationModel, setLocationActive } from "../lib/storage/locationStore.js";
+import {
+  FIXED_LOCATIONS,
+  loadLocationSchedule,
+  loadSharedLocationAssumptions,
+  saveLocationSchedule,
+} from "../lib/storage/locationStore.js";
 
 const ROLLUP_STORAGE_KEY = "the-yard-gym.rollupInputs.v1";
+const SHARED_ASSUMPTIONS_STORAGE_KEY = "the-yard-gym.sharedLocationAssumptions.v1";
 
 const DEFAULT_LOCATION_META = {
-  locationName: "Location 1",
+  id: "livermore",
+  locationName: "Livermore",
   scenarioName: "Base Case",
-  projectedOpenDate: "2027-01-01",
+  projectedOpenDate: "2027-06-01",
 };
 
 const DEFAULT_ROLLUP_INPUTS = {
@@ -172,6 +179,52 @@ function loadRollupInputs() {
   } catch {
     return DEFAULT_ROLLUP_INPUTS;
   }
+}
+
+function loadSharedAssumptions() {
+  try {
+    const raw = window.localStorage.getItem(SHARED_ASSUMPTIONS_STORAGE_KEY);
+    if (!raw) return loadSharedLocationAssumptions(DEFAULT_ASSUMPTIONS);
+    return { ...DEFAULT_ASSUMPTIONS, ...JSON.parse(raw) };
+  } catch {
+    return loadSharedLocationAssumptions(DEFAULT_ASSUMPTIONS);
+  }
+}
+
+function buildLocationRecords({ assumptions, modelStartDate, schedule }) {
+  return schedule.map((location) => {
+    const model = calculateModel(assumptions, {
+      projectedOpenDate: location.projectedOpenDate,
+      modelStartDate,
+    });
+
+    return {
+      id: location.id,
+      entityType: "location",
+      isActive: true,
+      locationName: location.locationName,
+      scenarioName: "Shared Base Case",
+      projectedOpenDate: location.projectedOpenDate,
+      projectName: "The Yard Gym Opportunity",
+      modelName: "Single-Location Financial & Operations Model",
+      assumptions,
+      outputs: {
+        totalInitialInvestment: model.totalInitialInvestment,
+        ownerInjection: model.ownerInjection,
+        loanAmount: model.loanAmount,
+        monthlyLoanPayment: model.monthlyLoanPayment,
+        month36: model.months[35],
+        preOpeningSummary: model.preOpeningMonths,
+        monthlySummary: model.months,
+        annualSummary: model.years,
+        corporateFinancing: {
+          entityName: "Hart Fitness, Inc.",
+          loanAmount: model.loanAmount,
+          monthlyLoanPayment: model.monthlyLoanPayment,
+        },
+      },
+    };
+  });
 }
 
 function calculateRollupModel(locations, inputs, options = {}) {
@@ -2933,72 +2986,62 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
 }
 
 export function App() {
-  const [assumptions, setAssumptions] = useState(DEFAULT_ASSUMPTIONS);
+  const [assumptions, setAssumptions] = useState(loadSharedAssumptions);
   const [openGroup, setOpenGroup] = useState("Membership / Revenue");
-  const [locations, setLocations] = useState(loadLocations);
-  const [activeLocationId, setActiveLocationId] = useState(null);
+  const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
+  const [activeLocationId, setActiveLocationId] = useState(DEFAULT_LOCATION_META.id);
   const [locationMeta, setLocationMeta] = useState(DEFAULT_LOCATION_META);
-  const [autoSavePending, setAutoSavePending] = useState(false);
   const [activeView, setActiveView] = useState("location");
   const [activeWealthView, setActiveWealthView] = useState("overview");
   const [rollupInputs, setRollupInputs] = useState(loadRollupInputs);
-  const activeScenarioLocations = useMemo(() => getActiveLocations(locations), [locations]);
+  const locations = useMemo(
+    () =>
+      buildLocationRecords({
+        assumptions,
+        modelStartDate: rollupInputs.modelStartDate,
+        schedule: locationSchedule,
+      }),
+    [assumptions, locationSchedule, rollupInputs.modelStartDate],
+  );
+  const activeScenarioLocations = locations;
+  const selectedLocation = locations.find((location) => location.id === activeLocationId) ?? locations[0];
   const model = useMemo(
     () =>
       calculateModel(assumptions, {
-        projectedOpenDate: locationMeta.projectedOpenDate,
+        projectedOpenDate: selectedLocation?.projectedOpenDate ?? DEFAULT_LOCATION_META.projectedOpenDate,
         modelStartDate: rollupInputs.modelStartDate,
       }),
-    [assumptions, locationMeta.projectedOpenDate, rollupInputs.modelStartDate],
+    [assumptions, selectedLocation?.projectedOpenDate, rollupInputs.modelStartDate],
   );
 
   useEffect(() => {
-    if (!autoSavePending) return undefined;
-    const timeoutId = window.setTimeout(() => {
-      const saved = saveLocationModel({ activeLocationId, locationMeta, assumptions, model });
-      setActiveLocationId(saved.id);
-      setLocationMeta({
-        locationName: saved.locationName,
-        scenarioName: saved.scenarioName,
-        projectedOpenDate: saved.projectedOpenDate,
-      });
-      setLocations(loadLocations());
-      setAutoSavePending(false);
-    }, 450);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [activeLocationId, assumptions, autoSavePending, locationMeta, model]);
+    window.localStorage.setItem(SHARED_ASSUMPTIONS_STORAGE_KEY, JSON.stringify(assumptions));
+  }, [assumptions]);
 
   useEffect(() => {
     window.localStorage.setItem(ROLLUP_STORAGE_KEY, JSON.stringify(rollupInputs));
   }, [rollupInputs]);
 
+  useEffect(() => {
+    if (!selectedLocation) return;
+    setLocationMeta({
+      id: selectedLocation.id,
+      locationName: selectedLocation.locationName,
+      scenarioName: selectedLocation.scenarioName,
+      projectedOpenDate: selectedLocation.projectedOpenDate,
+    });
+  }, [selectedLocation]);
+
   function updateAssumption(key, value) {
     setAssumptions((current) => ({ ...current, [key]: Number.isFinite(value) ? value : 0 }));
-    setAutoSavePending(true);
   }
 
   function resetAssumptions() {
     setAssumptions(DEFAULT_ASSUMPTIONS);
-    setActiveLocationId(null);
+    setLocationSchedule(FIXED_LOCATIONS);
+    saveLocationSchedule(FIXED_LOCATIONS);
+    setActiveLocationId(DEFAULT_LOCATION_META.id);
     setLocationMeta(DEFAULT_LOCATION_META);
-    setAutoSavePending(false);
-  }
-
-  function newLocation() {
-    setActiveView("location");
-    setActiveLocationId(null);
-    setLocationMeta({
-      ...DEFAULT_LOCATION_META,
-      locationName: `Location ${locations.length + 1}`,
-    });
-    setAssumptions(DEFAULT_ASSUMPTIONS);
-    setAutoSavePending(false);
-  }
-
-  function updateLocationMeta(updater) {
-    setLocationMeta(updater);
-    setAutoSavePending(true);
   }
 
   function updateRollupInput(key, value) {
@@ -3007,24 +3050,21 @@ export function App() {
 
   function loadLocation(location) {
     setActiveView("location");
-    setAssumptions({ ...DEFAULT_ASSUMPTIONS, ...location.assumptions });
     setActiveLocationId(location.id);
     setLocationMeta({
+      id: location.id,
       locationName: location.locationName,
       scenarioName: location.scenarioName,
-      projectedOpenDate: location.projectedOpenDate ?? "2027-01-01",
+      projectedOpenDate: location.projectedOpenDate ?? DEFAULT_LOCATION_META.projectedOpenDate,
     });
-    setAutoSavePending(false);
   }
 
-  function removeLocation(id) {
-    const next = deleteLocation(id);
-    setLocations(next);
-    if (id === activeLocationId) newLocation();
-  }
-
-  function toggleLocationActive(id, isActive) {
-    setLocations(setLocationActive(id, isActive));
+  function updateLocationOpenDate(id, projectedOpenDate) {
+    setLocationSchedule((current) => {
+      const next = current.map((location) => (location.id === id ? { ...location, projectedOpenDate } : location));
+      saveLocationSchedule(next);
+      return next;
+    });
   }
 
   function exportCsv() {
@@ -3130,13 +3170,9 @@ export function App() {
           <div className="leftRail">
             <LocationManager
               activeLocationId={activeLocationId}
-              locationMeta={locationMeta}
               locations={locations}
-              setLocationMeta={updateLocationMeta}
-              onNew={newLocation}
               onLoad={loadLocation}
-              onToggleActive={toggleLocationActive}
-              onDelete={removeLocation}
+              onUpdateOpenDate={updateLocationOpenDate}
             />
             <AssumptionsPanel
               assumptions={assumptions}
