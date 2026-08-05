@@ -1,0 +1,1138 @@
+:root {
+  color-scheme: light;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f5f2ec;
+  color: #22262a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #d8d2c8;
+  background: #fffdf8;
+  color: #22262a;
+  border-radius: 6px;
+  min-height: 30px;
+  cursor: pointer;
+}
+
+main {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 24px 16px;
+  background: #22262a;
+  color: #f8f4ea;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #e4b64b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(1.45rem, 2.1vw, 2.1rem);
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #cdd1d2;
+  font-size: 0.78rem;
+}
+
+h2 {
+  font-size: 0.88rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+}
+
+.headerActions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.headerActions button {
+  border-color: #3d4449;
+  background: #30363b;
+  color: #f8f4ea;
+}
+
+.viewTabs {
+  display: flex;
+  gap: 1px;
+  background: #d8d2c8;
+  border-bottom: 1px solid #d8d2c8;
+}
+
+.viewTabs button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: #fffdf8;
+  color: #41484e;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.viewTabs button.active {
+  background: #22262a;
+  color: #f8f4ea;
+}
+
+.subTabs {
+  padding-left: 12px;
+  background: #eee8df;
+}
+
+.subTabs button {
+  min-height: 34px;
+  font-size: 0.72rem;
+}
+
+.wealthSourceBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 16px;
+  border-bottom: 1px solid #d8d2c8;
+  background: #eee8df;
+}
+
+.wealthSourceBar label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #687076;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wealthSourceBar select {
+  height: 30px;
+  min-width: 160px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #d8d2c8;
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #22262a;
+  font: inherit;
+  text-transform: none;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: #d8d2c8;
+  border-bottom: 1px solid #d8d2c8;
+}
+
+.kpis article {
+  padding: 12px 18px;
+  background: #fffdf8;
+}
+
+.kpis span,
+.kpis small,
+footer {
+  color: #687076;
+}
+
+.kpis span,
+.kpis small {
+  display: block;
+}
+
+.kpis span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.kpis strong {
+  display: block;
+  margin: 5px 0 2px;
+  font-size: 1.32rem;
+  line-height: 1.05;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: start;
+  max-width: 100vw;
+}
+
+.workspace > * {
+  min-width: 0;
+}
+
+.rollupPage {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.leftRail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  padding: 12px;
+  background: #ece7dc;
+  border-right: 1px solid #d8d2c8;
+}
+
+.assumptions {
+  margin-top: 10px;
+}
+
+.panelTitle,
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.panelTitle p {
+  margin: 3px 0 0;
+  color: #687076;
+  font-size: 0.72rem;
+}
+
+.panelHeader {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.locationPanel {
+  border: 1px solid #d8d2c8;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdf8;
+}
+
+.locationPanel .panelHeader button,
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.locationFields {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.locationFields input,
+.locationFields select {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid #d7d0c4;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #fff9e8;
+}
+
+.locationFields button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.compactField {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 136px;
+  align-items: center;
+  gap: 8px;
+  color: #41484e;
+  font-size: 0.75rem;
+}
+
+.compactField input {
+  width: 100%;
+  text-align: right;
+}
+
+.locationList {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.emptyState {
+  margin: 0;
+  padding: 8px;
+  color: #687076;
+  font-size: 0.78rem;
+}
+
+.locationItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px 30px;
+  gap: 6px;
+  align-items: stretch;
+  border: 1px solid #eee8df;
+  border-radius: 7px;
+  padding: 4px;
+  background: #faf7ef;
+}
+
+.locationItem.active {
+  border-color: #1d6f67;
+  background: #edf7f4;
+}
+
+.locationItem.inactive {
+  background: #f4f1ea;
+  opacity: 0.68;
+}
+
+.locationLoad {
+  display: grid;
+  gap: 2px;
+  min-height: 0;
+  border: 0;
+  padding: 5px 6px;
+  background: transparent;
+  text-align: left;
+}
+
+.locationLoad strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.locationLoad span {
+  overflow: hidden;
+  color: #687076;
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rollupLocationRow {
+  display: grid;
+  gap: 2px;
+  border: 1px solid #eee8df;
+  border-radius: 7px;
+  padding: 8px;
+  background: #faf7ef;
+}
+
+.rollupLocationRow strong,
+.rollupLocationRow span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rollupLocationRow strong {
+  font-size: 0.78rem;
+}
+
+.rollupLocationRow span {
+  color: #687076;
+  font-size: 0.7rem;
+}
+
+.iconButton {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.locationStatusButton.active {
+  color: #1d6f67;
+  background: #e3f2ee;
+}
+
+.assumptionGroup {
+  margin-top: 8px;
+  border: 1px solid #d8d2c8;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fffdf8;
+}
+
+.groupToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 10px;
+  font-weight: 800;
+  font-size: 0.84rem;
+}
+
+.chevron {
+  transition: transform 160ms ease;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
+
+.groupFields {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border-top: 1px solid #ebe5da;
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+
+.inputRow span {
+  color: #41484e;
+}
+
+.inputRow input,
+.inputRow select {
+  width: 100%;
+  border: 1px solid #d7d0c4;
+  border-radius: 6px;
+  min-height: 28px;
+  padding: 5px 7px;
+  background: #fff9e8;
+  text-align: right;
+}
+
+.inputRow select {
+  text-align: left;
+}
+
+.rollupInputs .inputRow {
+  grid-template-columns: minmax(0, 1fr) 122px;
+}
+
+.dashboard {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 12px 12px;
+}
+
+.annualPanel,
+.tablePanel,
+.locationSnapshot,
+.portfolioPanel {
+  min-width: 0;
+  border: 1px solid #d8d2c8;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 12px;
+}
+
+.portfolioPanel {
+  margin: 0;
+}
+
+.locationSnapshot {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 12px;
+  margin: 12px;
+}
+
+.locationSnapshot h2 {
+  font-size: 1rem;
+}
+
+.locationSnapshot p:last-child {
+  margin: 6px 0 0;
+  color: #687076;
+  font-size: 0.76rem;
+}
+
+.locationKpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #eee8df;
+  border-radius: 7px;
+  background: #eee8df;
+}
+
+.locationKpis article {
+  min-width: 0;
+  padding: 10px;
+  background: #faf7ef;
+}
+
+.locationKpis span,
+.locationKpis small {
+  display: block;
+  overflow: hidden;
+  color: #687076;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locationKpis span {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.locationKpis strong {
+  display: block;
+  margin: 5px 0 2px;
+  overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locationKpis small {
+  font-size: 0.7rem;
+}
+
+.wealthKpis small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.wealthOverviewPanel {
+  margin: 12px;
+  padding: 18px;
+  border: 1px solid #ded7ca;
+  border-radius: 8px;
+  background: #faf7ef;
+}
+
+.wealthHero {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(260px, 1.25fr);
+  gap: 24px;
+  align-items: end;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e7dfd2;
+}
+
+.wealthHero h2 {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+}
+
+.wealthHero p,
+.wealthHeroValue small,
+.wealthMetricStrip small,
+.wealthAccountList small,
+.wealthNote {
+  color: #687076;
+}
+
+.wealthHero p {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+}
+
+.wealthHeroValue {
+  text-align: right;
+}
+
+.wealthHeroValue span,
+.wealthMetricStrip span,
+.wealthAccountHeader span {
+  display: block;
+  color: #687076;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.wealthHeroValue strong {
+  display: block;
+  margin: 2px 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.wealthHeroValue small {
+  display: block;
+  font-size: 0.74rem;
+}
+
+.wealthMetricStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 16px 0;
+}
+
+.wealthMetricStrip strong {
+  display: block;
+  margin: 4px 0 2px;
+  font-size: 1.05rem;
+}
+
+.wealthMetricStrip small,
+.wealthAccountList small {
+  font-size: 0.72rem;
+}
+
+.wealthAccountList {
+  overflow: hidden;
+  border: 1px solid #eee8df;
+  border-radius: 7px;
+  background: #fffdf7;
+}
+
+.wealthAccountList > div {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.2fr) repeat(3, minmax(130px, 1fr));
+  gap: 12px;
+  align-items: center;
+  padding: 11px 14px;
+  border-top: 1px solid #eee8df;
+}
+
+.wealthAccountList > div:first-child {
+  border-top: 0;
+}
+
+.wealthAccountList > div:not(.wealthAccountHeader) span {
+  font-weight: 800;
+}
+
+.wealthAccountList strong,
+.wealthAccountList small {
+  display: block;
+}
+
+.wealthAccountList strong {
+  font-size: 0.88rem;
+}
+
+.wealthAccountHeader {
+  background: #f4efe6;
+}
+
+.wealthSubtotalRow {
+  background: #fbf8f1;
+}
+
+.wealthSubtotalRow span,
+.wealthTotalRow span {
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wealthTotalRow {
+  background: #f4efe6;
+  border-top: 2px solid #d8d0c3 !important;
+}
+
+.wealthTotalRow strong {
+  font-size: 1rem;
+}
+
+.wealthNote {
+  margin: 14px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.portfolioGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid #eee8df;
+  border-radius: 7px;
+  background: #eee8df;
+}
+
+.portfolioGrid article {
+  min-width: 0;
+  padding: 10px;
+  background: #faf7ef;
+}
+
+.portfolioGrid span {
+  display: block;
+  overflow: hidden;
+  color: #687076;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.portfolioGrid strong {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annualGrid,
+.preOpenGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.annualGrid article,
+.preOpenGrid article {
+  border: 1px solid #e0d8cc;
+  border-radius: 8px;
+  padding: 14px;
+  background: #faf6ee;
+}
+
+.annualGrid span,
+.preOpenGrid span {
+  color: #687076;
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.annualGrid strong,
+.preOpenGrid strong {
+  display: block;
+  margin: 8px 0 12px;
+  font-size: 1.45rem;
+}
+
+.preOpenGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preOpenGrid article {
+  padding: 10px;
+}
+
+.preOpenGrid strong {
+  margin: 5px 0 4px;
+  font-size: 1rem;
+}
+
+.preOpenGrid small {
+  display: block;
+  color: #687076;
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.segmentedControl {
+  display: inline-flex;
+  flex-wrap: wrap;
+  overflow: hidden;
+  border: 1px solid #d8d2c8;
+  border-radius: 7px;
+  background: #eee8df;
+}
+
+.segmentedControl button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 10px;
+  background: #faf7ef;
+  color: #41484e;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.segmentedControl button.active {
+  background: #22262a;
+  color: #fffdf8;
+}
+
+.profitChartWrap {
+  margin-top: 14px;
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid #eee8df;
+  border-radius: 8px;
+  background: #faf7ef;
+}
+
+.profitChart {
+  display: block;
+  width: 100%;
+  min-width: 660px;
+  height: auto;
+}
+
+.rothLineChart {
+  min-width: 760px;
+}
+
+.chartZeroLine {
+  stroke: #cfc6b8;
+  stroke-width: 2;
+}
+
+.chartBar {
+  shape-rendering: geometricPrecision;
+}
+
+.positiveBar {
+  fill: #1d6f67;
+}
+
+.principalBar {
+  fill: #1d6f67;
+}
+
+.interestBar {
+  fill: #e0ad3f;
+}
+
+.negativeBar {
+  fill: #b4432d;
+}
+
+.chartValue {
+  fill: #22262a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.compactChartValue {
+  font-size: 13px;
+}
+
+.stackLabel {
+  font-size: 12px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.principalStackLabel {
+  fill: #fffdf8;
+}
+
+.interestStackLabel {
+  fill: #22262a;
+}
+
+.chartYear {
+  fill: #687076;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.scenarioLine {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.scenarioPoint {
+  stroke: #fffdf8;
+  stroke-width: 2;
+}
+
+.scenarioEndLabel {
+  font-size: 12px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: #faf7ef;
+  stroke-width: 4px;
+}
+
+.chartLegend {
+  display: flex;
+  gap: 16px;
+  padding: 0 14px 12px;
+  color: #41484e;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.chartLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.principalSwatch {
+  background: #1d6f67;
+}
+
+.interestSwatch {
+  background: #e0ad3f;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 12px;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+dt {
+  color: #687076;
+}
+
+dd {
+  margin: 0;
+  font-weight: 750;
+}
+
+.tableWrap {
+  margin-top: 14px;
+  max-width: 100%;
+  max-height: calc(100vh - 210px);
+  overflow: auto;
+  border: 1px solid #e0d8cc;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  min-width: 2140px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+th:nth-child(1),
+td:nth-child(1) {
+  width: 72px;
+  min-width: 72px;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  width: 126px;
+  min-width: 126px;
+}
+
+th,
+td {
+  padding: 10px 11px;
+  border-bottom: 1px solid #eee8df;
+  text-align: right;
+  white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #22262a;
+  color: #fffdf8;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  z-index: 4;
+}
+
+th:nth-child(1),
+td:nth-child(1),
+th:nth-child(2),
+td:nth-child(2) {
+  position: sticky;
+  z-index: 3;
+}
+
+th:nth-child(1),
+td:nth-child(1) {
+  left: 0;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  left: 72px;
+}
+
+td:nth-child(1),
+td:nth-child(2) {
+  background: #fffdf8;
+  box-shadow: 1px 0 0 #eee8df;
+}
+
+tbody tr:nth-child(even) td:nth-child(1),
+tbody tr:nth-child(even) td:nth-child(2) {
+  background: #faf7ef;
+}
+
+th:nth-child(1),
+th:nth-child(2) {
+  z-index: 5;
+}
+
+tbody tr:nth-child(even) {
+  background: #faf7ef;
+}
+
+.positive {
+  color: #147060;
+  font-weight: 800;
+}
+
+.negative {
+  color: #b4432d;
+  font-weight: 800;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px 22px;
+}
+
+@media (max-width: 980px) {
+  .topbar,
+  .workspace {
+    display: block;
+  }
+
+  .headerActions {
+    margin-top: 18px;
+  }
+
+  .kpis,
+  .annualGrid,
+  .preOpenGrid,
+  .locationKpis,
+  .portfolioGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .locationSnapshot {
+    grid-template-columns: 1fr;
+  }
+
+  .wealthHero,
+  .wealthMetricStrip,
+  .wealthAccountList > div {
+    grid-template-columns: 1fr;
+  }
+
+  .wealthHeroValue {
+    text-align: left;
+  }
+
+  .wealthAccountHeader {
+    display: none !important;
+  }
+
+  .leftRail {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #d8d2c8;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    padding: 22px 18px;
+  }
+
+  .kpis,
+  .annualGrid,
+  .preOpenGrid,
+  .locationKpis,
+  .portfolioGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard,
+  .rollupPage,
+  .leftRail {
+    padding: 14px;
+  }
+
+  .panelHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chartHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .inputRow {
+    grid-template-columns: 1fr;
+  }
+
+  .inputRow input {
+    text-align: left;
+  }
+}
