@@ -68,7 +68,7 @@ export function LocationManager({
                 <strong>{location.locationName}</strong>
                 <span>
                   {isActive ? "Active" : "Inactive"} · {location.projectedOpenDate} ·{" "}
-                  {money.format(location.outputs.month36.grossOperatingProfit)} M36 LLC
+                  {money.format(location.outputs.month36.grossOperatingProfit)} M36
                   op profit · {pct.format(location.outputs.month36.operatingMargin)}
                 </span>
               </button>

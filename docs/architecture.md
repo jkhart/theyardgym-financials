@@ -37,11 +37,11 @@ Location records are autosaved. Creating a new location or editing location fiel
 
 ## Entity And Portfolio Modeling
 
-The app models Hart Fitness, Inc. as the parent/financing entity. Each saved location represents an operating LLC underneath the parent.
+The app models Hart Fitness, Inc. as the parent/financing entity. Each saved location represents an operating location underneath the parent.
 
-Operating revenue and operating expenses belong to each location LLC. Debt principal, interest, and debt service are tracked separately as Hart Fitness, Inc. financing tied to the location buildout.
+Operating revenue and operating expenses belong to each location. Debt principal, interest, and debt service are tracked separately as Hart Fitness, Inc. financing tied to the location buildout.
 
-The active model remains a single-location LLC operating model with allocated corporate financing. Saved location models can be rolled up into a Hart Fitness, Inc. portfolio summary.
+The active model remains a single-location operating model with allocated corporate financing. Saved location models can be rolled up into a Hart Fitness, Inc. portfolio summary.
 
 The current rollup is not fully calendarized; it sums each location's month-36 and annual outputs as if each location is viewed on its own operating timeline. The next step for a four-location buildout is a calendarized portfolio model that offsets each location by `projectedOpenDate` and then sums pre-opening investment, monthly revenue, expense, cash flow, and debt service by portfolio month.
 

@@ -49,24 +49,17 @@ const DEFAULT_ROLLUP_INPUTS = {
   personalDownsideReturn: 0.06,
   personalAnnualReturn: 0.1,
   personalUpsideReturn: 0.12,
-  llcEntityName: "Hart Fitness Holdings, LLC",
-  llcStartingCash: 500000,
-  llcPassThroughTaxRate: 0.35,
-  llcSaleTaxRate: 0.25,
-  llcDistributionCashFloor: 100000,
   wealthSourceStructure: "robs-stock",
   safeWithdrawalRate: 0.05,
   portfolioLoanLtvLimit: 0.5,
 };
 
 function getWealthSource(value) {
-  if (value === "llc") return "llc";
   if (value === "robs-asset") return "robs-asset";
   return "robs-stock";
 }
 
 function getWealthSourceLabel(source) {
-  if (source === "llc") return "LLC";
   if (source === "robs-asset") return "ROBS + Asset Sale";
   return "ROBS + Stock Sale";
 }
@@ -459,232 +452,6 @@ function calculateRollupModel(locations, inputs, options = {}) {
   };
 }
 
-function calculateLlcModel(locations, inputs) {
-  locations = getActiveLocations(locations);
-  const startDate = parseLocalDate(inputs.modelStartDate);
-  const saleDate = inputs.saleDate || DEFAULT_ROLLUP_INPUTS.saleDate;
-  const horizonMonths = Math.max(1, Math.min(180, monthDiff(inputs.modelStartDate, saleDate) + 1));
-  const startingCash = Number(inputs.llcStartingCash) || 0;
-  const minimumWorkingCapital = Number(inputs.minimumWorkingCapital) || 0;
-  const distributionCashFloor = Number(inputs.llcDistributionCashFloor) || 0;
-  const passThroughTaxRate = Number(inputs.llcPassThroughTaxRate) || 0;
-  const saleTaxRate = Number(inputs.llcSaleTaxRate) || 0;
-  const ebitdaMultiple = Number(inputs.ebitdaMultiple) || 0;
-  const transactionCostRate = Number(inputs.transactionCostRate) || 0;
-  const assetTaxBasis = Number(inputs.assetTaxBasis) || 0;
-  const distributionStartDate = getLastProjectedOpenDate(locations);
-  const emptyMonth = (index) => {
-    const date = addMonths(startDate, index);
-    return {
-      month: index + 1,
-      date: toDateInputValue(date),
-      monthLabel: formatMonthLabel(toDateInputValue(date)),
-      activeLocations: 0,
-      preOpenInvestment: 0,
-      ownerFundedOutlay: 0,
-      debtFundedOutlay: 0,
-      totalMembers: 0,
-      operatingRevenue: 0,
-      totalExpenses: 0,
-      grossOperatingProfit: 0,
-      debtService: 0,
-      debtPrincipal: 0,
-      debtInterest: 0,
-      taxableIncome: 0,
-      passThroughTaxes: 0,
-      ownerIncomeAfterTax: 0,
-      netCash: 0,
-      beginningCash: 0,
-      totalDistributions: 0,
-      llcCashUsed: 0,
-      newDebt: 0,
-      endingCash: 0,
-      debtBalance: 0,
-      ttmOperatingProfit: 0,
-      saleEnterpriseValue: 0,
-      saleDebtPayoff: 0,
-      saleCashAtClose: 0,
-      saleTaxes: 0,
-      saleTransactionCosts: 0,
-      saleNetProceeds: 0,
-    };
-  };
-  const months = Array.from({ length: horizonMonths }, (_, index) => emptyMonth(index));
-  const byMonth = new Map(months.map((month) => [toMonthKey(month.date), month]));
-  const fundingByLocation = new Map();
-  const activeLoans = [];
-  let llcCash = startingCash;
-
-  locations.forEach((location) => {
-    location.outputs.preOpeningSummary?.forEach((row) => {
-      const month = byMonth.get(toMonthKey(row.date));
-      if (!month) return;
-      month.preOpenInvestment += row.initialInvestmentOutlay ?? 0;
-    });
-
-    months.forEach((month) => {
-      const monthlySummary = location.outputs.monthlySummary ?? [];
-      const operatingMonthIndex = monthDiff(location.projectedOpenDate, month.date);
-      if (operatingMonthIndex < 0 || monthlySummary.length === 0) return;
-      const row = monthlySummary[Math.min(operatingMonthIndex, monthlySummary.length - 1)];
-      month.activeLocations += 1;
-      month.totalMembers += row.totalMembers ?? 0;
-      month.operatingRevenue += row.operatingRevenue ?? 0;
-      month.totalExpenses += row.totalExpenses ?? 0;
-      month.grossOperatingProfit += row.grossOperatingProfit ?? 0;
-    });
-  });
-
-  months.forEach((month) => {
-    month.beginningCash = llcCash;
-    llcCash += month.grossOperatingProfit;
-
-    activeLoans.forEach((loan) => {
-      if (loan.balance <= 0) return;
-      const interest = loan.balance * loan.monthlyRate;
-      const principal = Math.min(Math.max(loan.monthlyPayment - interest, 0), loan.balance);
-      const debtService = principal + interest;
-      loan.balance = Math.max(0, loan.balance - principal);
-      month.debtService += debtService;
-      month.debtPrincipal += principal;
-      month.debtInterest += interest;
-    });
-
-    month.taxableIncome = Math.max(0, month.grossOperatingProfit - month.debtInterest);
-    month.passThroughTaxes = month.taxableIncome * passThroughTaxRate;
-    llcCash -= month.passThroughTaxes;
-    llcCash -= month.debtService;
-
-    const fundingRequests = locations
-      .map((location) => ({
-        location,
-        outlay:
-          location.outputs.preOpeningSummary?.find((row) => toMonthKey(row.date) === toMonthKey(month.date))
-            ?.initialInvestmentOutlay ?? 0,
-      }))
-      .filter((request) => request.outlay > 0);
-
-    fundingRequests.forEach(({ location, outlay }) => {
-      const availableCash = Math.max(0, llcCash - minimumWorkingCapital);
-      const llcCashUsed = Math.min(outlay, availableCash);
-      const newDebt = outlay - llcCashUsed;
-      llcCash -= llcCashUsed;
-      month.llcCashUsed += llcCashUsed;
-      month.ownerFundedOutlay += llcCashUsed;
-      month.newDebt += newDebt;
-      month.debtFundedOutlay += newDebt;
-      const current = fundingByLocation.get(location.id) ?? { llcCashUsed: 0, newDebt: 0 };
-      fundingByLocation.set(location.id, {
-        llcCashUsed: current.llcCashUsed + llcCashUsed,
-        newDebt: current.newDebt + newDebt,
-      });
-      if (newDebt > 0) {
-        const monthlyRate = (location.assumptions?.loanRate ?? DEFAULT_ASSUMPTIONS.loanRate) / 12;
-        const termMonths = (location.assumptions?.loanTermYears ?? DEFAULT_ASSUMPTIONS.loanTermYears) * 12;
-        activeLoans.push({
-          locationId: location.id,
-          balance: newDebt,
-          monthlyPayment: pmt(monthlyRate, termMonths, newDebt),
-          monthlyRate,
-        });
-      }
-    });
-
-    month.ownerIncomeAfterTax = month.grossOperatingProfit - month.debtInterest - month.passThroughTaxes;
-    month.netCash = month.grossOperatingProfit - month.passThroughTaxes - month.debtService - month.llcCashUsed;
-    const distributionsAllowed = distributionStartDate && monthDiff(distributionStartDate, month.date) >= 0;
-    if (distributionsAllowed) {
-      const cashAvailableForDistribution = Math.max(0, llcCash - distributionCashFloor);
-      month.totalDistributions = cashAvailableForDistribution;
-      llcCash -= month.totalDistributions;
-    }
-    month.endingCash = llcCash;
-    month.debtBalance = activeLoans.reduce((total, loan) => total + loan.balance, 0);
-    month.operatingMargin = month.operatingRevenue ? month.grossOperatingProfit / month.operatingRevenue : 0;
-  });
-
-  months.forEach((month, index) => {
-    const trailingMonths = months.slice(Math.max(0, index - 11), index + 1);
-    month.ttmOperatingProfit = trailingMonths.reduce((total, row) => total + row.grossOperatingProfit, 0);
-    if (!saleDate || toMonthKey(month.date) !== toMonthKey(saleDate)) return;
-    month.saleEnterpriseValue = month.ttmOperatingProfit * ebitdaMultiple;
-    month.saleDebtPayoff = month.debtBalance;
-    month.saleCashAtClose = month.endingCash;
-    month.saleTransactionCosts = Math.max(0, month.saleEnterpriseValue * transactionCostRate);
-    const taxableSaleGain = Math.max(
-      0,
-      month.saleEnterpriseValue - month.saleDebtPayoff + month.saleCashAtClose - month.saleTransactionCosts - assetTaxBasis,
-    );
-    month.saleTaxes = taxableSaleGain * saleTaxRate;
-    month.saleNetProceeds =
-      month.saleEnterpriseValue - month.saleDebtPayoff + month.saleCashAtClose - month.saleTaxes - month.saleTransactionCosts;
-  });
-
-  const yearGroups = months.reduce((groups, month) => {
-    const calendarYear = parseLocalDate(month.date).getFullYear();
-    const group = groups.get(calendarYear) ?? [];
-    group.push(month);
-    groups.set(calendarYear, group);
-    return groups;
-  }, new Map());
-  const years = Array.from(yearGroups, ([calendarYear, slice]) => {
-    const sum = (key) => slice.reduce((total, row) => total + row[key], 0);
-    const end = slice.at(-1);
-    const operatingRevenue = sum("operatingRevenue");
-    const grossOperatingProfit = sum("grossOperatingProfit");
-    const endingCash = end?.endingCash ?? startingCash;
-    const debtBalance = end?.debtBalance ?? 0;
-    const enterpriseValue = grossOperatingProfit * ebitdaMultiple;
-    return {
-      calendarYear,
-      preOpenInvestment: sum("preOpenInvestment"),
-      operatingRevenue,
-      totalExpenses: sum("totalExpenses"),
-      grossOperatingProfit,
-      debtService: sum("debtService"),
-      debtPrincipal: sum("debtPrincipal"),
-      debtInterest: sum("debtInterest"),
-      taxableIncome: sum("taxableIncome"),
-      passThroughTaxes: sum("passThroughTaxes"),
-      ownerIncomeAfterTax: sum("ownerIncomeAfterTax"),
-      netCash: sum("netCash"),
-      beginningCash: slice[0]?.beginningCash ?? startingCash,
-      totalDistributions: sum("totalDistributions"),
-      ttmOperatingProfit: end?.ttmOperatingProfit ?? 0,
-      saleEnterpriseValue: sum("saleEnterpriseValue"),
-      saleDebtPayoff: sum("saleDebtPayoff"),
-      saleCashAtClose: sum("saleCashAtClose"),
-      saleTaxes: sum("saleTaxes"),
-      saleTransactionCosts: sum("saleTransactionCosts"),
-      saleNetProceeds: sum("saleNetProceeds"),
-      llcCashUsed: sum("llcCashUsed"),
-      newDebt: sum("newDebt"),
-      endingCash,
-      debtBalance,
-      enterpriseValue,
-      equityValue: enterpriseValue - debtBalance + endingCash,
-      totalMembers: end?.totalMembers ?? 0,
-      operatingMargin: operatingRevenue ? grossOperatingProfit / operatingRevenue : 0,
-    };
-  });
-
-  return {
-    months,
-    years,
-    fundingByLocation: Object.fromEntries(fundingByLocation),
-    startingCash,
-    minimumWorkingCapital,
-    distributionCashFloor,
-    distributionStartDate,
-    passThroughTaxRate,
-    saleTaxRate,
-    ebitdaMultiple,
-    saleDate,
-    transactionCostRate,
-    assetTaxBasis,
-  };
-}
-
 function calculateRothModel(rollupModel, inputs, options = {}) {
   const enabled = options.enabled !== false;
   const startDate = parseLocalDate(inputs.modelStartDate);
@@ -859,8 +626,7 @@ function calculateTraditionalIraModel(inputs) {
   });
 }
 
-function calculatePersonalModel(businessModel, inputs, structure = "robs") {
-  const usesRobs = structure !== "llc";
+function calculatePersonalModel(businessModel, inputs) {
   const startDate = parseLocalDate(inputs.modelStartDate);
   const birthDate = inputs.rothBirthDate || DEFAULT_ROLLUP_INPUTS.rothBirthDate;
   const endDate = toDateInputValue(addYears(parseLocalDate(birthDate), 60));
@@ -874,12 +640,9 @@ function calculatePersonalModel(businessModel, inputs, structure = "robs") {
   const stockAppreciation = Math.max(0, Number(inputs.personalStockAppreciation) || 0);
   const taxableGainShare = stockAppreciation / (1 + stockAppreciation);
   const effectiveWithdrawalTaxRate = taxableGainShare * capitalGainsTaxRate;
-  const businessContribution =
-    structure === "llc" ? Number(inputs.llcStartingCash) || 0 : Number(inputs.personalContribution) || 0;
+  const businessContribution = Number(inputs.personalContribution) || 0;
   const robsConversionTax =
-    usesRobs
-      ? (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0)
-      : 0;
+    (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0);
   const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
   const scenarioInputs = [
     { key: "downside", label: "Downside", annualReturn: Number(inputs.personalDownsideReturn) || 0 },
@@ -900,9 +663,9 @@ function calculatePersonalModel(businessModel, inputs, structure = "robs") {
       const deployedToCorp = index === 0 ? businessContribution : 0;
       const brokerageCashUsedForBusiness = businessMonth?.brokerageCashUsed ?? 0;
       const conversionTaxes = index === 0 ? robsConversionTax : 0;
-      const salary = usesRobs ? businessMonth?.ownerSalary ?? 0 : 0;
-      const distributions = structure === "llc" ? businessMonth?.totalDistributions ?? 0 : businessMonth?.personalDistribution ?? 0;
-      const saleProceeds = structure === "llc" ? businessMonth?.saleNetProceeds ?? 0 : businessMonth?.personalSaleProceeds ?? 0;
+      const salary = businessMonth?.ownerSalary ?? 0;
+      const distributions = businessMonth?.personalDistribution ?? 0;
+      const saleProceeds = businessMonth?.personalSaleProceeds ?? 0;
       const cashBeforeUses = beginningCashBalance + salary;
       const livingWithdrawals = getMonthlyLivingNeed(inputs, index);
       const cashUsedForLiving = Math.min(livingWithdrawals, cashBeforeUses);
@@ -1040,7 +803,7 @@ function LocationSnapshot({ locationMeta, model }) {
   return (
     <section className="locationSnapshot">
       <div>
-        <p className="eyebrow">Selected Location LLC</p>
+        <p className="eyebrow">Selected Location</p>
         <h2>{locationMeta.locationName}</h2>
         <p>{locationMeta.scenarioName} · Opens {locationMeta.projectedOpenDate}</p>
       </div>
@@ -1336,73 +1099,6 @@ const ROLLUP_CHART_METRICS = {
       ["roth401kDistribution", "Roth 401k"],
       ["personalDistribution", "Personal"],
     ],
-  },
-};
-
-const LLC_CHART_METRICS = {
-  operatingIncome: {
-    label: "Operating Income",
-    title: "Annual Operating Income",
-    valueKey: "grossOperatingProfit",
-    ariaLabel: "Annual LLC operating income",
-  },
-  afterTaxIncome: {
-    label: "After-Tax Income",
-    title: "Annual Owner Income After Tax",
-    valueKey: "ownerIncomeAfterTax",
-    ariaLabel: "Annual owner income after pass-through taxes",
-  },
-  cashFlow: {
-    label: "Cash Flow",
-    title: "Annual Cash Flow",
-    valueKey: "netCash",
-    ariaLabel: "Annual LLC cash flow after taxes, debt service, and cash used",
-  },
-  passThroughTaxes: {
-    label: "Taxes",
-    title: "Annual Pass-Through Taxes",
-    valueKey: "passThroughTaxes",
-    ariaLabel: "Annual pass-through taxes",
-  },
-  debtBalance: {
-    label: "Debt Balance",
-    title: "Year-End Debt Balance",
-    valueKey: "debtBalance",
-    ariaLabel: "Year-end LLC debt balance",
-  },
-  enterpriseValue: {
-    label: "Enterprise Value",
-    title: "Annual Enterprise Value",
-    valueKey: "enterpriseValue",
-    ariaLabel: "Annual enterprise value based on EBITDA proxy multiple",
-  },
-  equityValue: {
-    label: "Equity Value",
-    title: "Annual Equity Value",
-    valueKey: "equityValue",
-    ariaLabel: "Annual equity value based on EBITDA proxy multiple minus debt plus cash",
-  },
-  saleProceeds: {
-    label: "Sale Proceeds",
-    title: "Annual Sale Proceeds",
-    valueKey: "saleNetProceeds",
-    ariaLabel: "Annual net LLC sale proceeds",
-  },
-  debtService: {
-    label: "Debt Service",
-    title: "Annual Debt Service",
-    valueKey: "debtService",
-    ariaLabel: "Annual LLC debt service paid",
-    stackedKeys: [
-      ["debtPrincipal", "Principal"],
-      ["debtInterest", "Interest"],
-    ],
-  },
-  distributions: {
-    label: "Distributions",
-    title: "Annual Owner Distributions",
-    valueKey: "totalDistributions",
-    ariaLabel: "Annual owner distributions",
   },
 };
 
@@ -1777,7 +1473,7 @@ function ScenarioLineChart({ scenarios, ariaLabel }) {
   );
 }
 
-function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel, robsEnabled = true }) {
+function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel }) {
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
@@ -1791,7 +1487,6 @@ function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel, robsEnab
               type="number"
               step="1000"
               value={inputs.roth401kContribution}
-              disabled={!robsEnabled}
               onChange={(event) => {
                 const value = Number(event.target.value);
                 updateInput("roth401kContribution", value);
@@ -1816,9 +1511,8 @@ function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel, robsEnab
             <span>{rollupModel.distributionStartDate ? formatMonthLabel(rollupModel.distributionStartDate) : "No locations"}</span>
           </div>
           <p className="emptyState">
-            {robsEnabled
-              ? "This is the separate Roth 401k created by the ROBS. It is funded by the IRA rollover/conversion, buys Hart Fitness stock, and then receives its share of distributions and sale proceeds."
-              : "The LLC structure does not create a ROBS Roth 401k, so this account is modeled at zero while LLC is selected."}
+            This is the separate Roth 401k created by the ROBS. It is funded by the IRA rollover/conversion, buys
+            Hart Fitness stock, and then receives its share of distributions and sale proceeds.
           </p>
         </div>
       </section>
@@ -1837,7 +1531,7 @@ function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel, robsEnab
   );
 }
 
-function RothDashboard({ rothModel, inputs, robsEnabled = true }) {
+function RothDashboard({ rothModel, inputs }) {
   const totalDeployed = rothModel.months.reduce((total, month) => total + month.deployedToCorp, 0);
   const totalDistributions = rothModel.months.reduce((total, month) => total + month.distributions, 0);
   const totalSaleProceeds = rothModel.months.reduce((total, month) => total + month.saleProceeds, 0);
@@ -1849,17 +1543,13 @@ function RothDashboard({ rothModel, inputs, robsEnabled = true }) {
         <div>
           <p className="eyebrow">Roth 401k</p>
           <h2>ROBS Roth 401k Projection</h2>
-          <p>
-            {robsEnabled
-              ? `Through age ${num.format(rothModel.ageAtEnd)} · ${formatMonthLabel(rothModel.endDate)}`
-              : "Not used in the LLC structure"}
-          </p>
+          <p>Through age {num.format(rothModel.ageAtEnd)} · {formatMonthLabel(rothModel.endDate)}</p>
         </div>
         <div className="locationKpis">
           <article>
             <span>Starting Balance</span>
             <strong>{money.format(rothModel.startingBalance)}</strong>
-            <small>{robsEnabled ? "Converted IRA cash inside company plan" : "No ROBS account under LLC"}</small>
+            <small>Converted IRA cash inside company plan</small>
           </article>
           <article>
             <span>Deployed to C-Corp</span>
@@ -1929,10 +1619,9 @@ function RothDashboard({ rothModel, inputs, robsEnabled = true }) {
 
 function RothPage({ locations, inputs, updateInput }) {
   const sourceStructure = getWealthSource(inputs.wealthSourceStructure);
-  const robsEnabled = sourceStructure !== "llc";
   const saleType = getRobsSaleTypeForSource(sourceStructure);
   const rollupModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType }), [locations, inputs, saleType]);
-  const rothModel = useMemo(() => calculateRothModel(rollupModel, inputs, { enabled: robsEnabled }), [rollupModel, inputs, robsEnabled]);
+  const rothModel = useMemo(() => calculateRothModel(rollupModel, inputs), [rollupModel, inputs]);
 
   return (
     <section className="workspace">
@@ -1942,11 +1631,10 @@ function RothPage({ locations, inputs, updateInput }) {
           updateInput={updateInput}
           rothModel={rothModel}
           rollupModel={rollupModel}
-          robsEnabled={robsEnabled}
         />
       </div>
       <div>
-        <RothDashboard rothModel={rothModel} inputs={inputs} robsEnabled={robsEnabled} />
+        <RothDashboard rothModel={rothModel} inputs={inputs} />
       </div>
     </section>
   );
@@ -2224,11 +1912,9 @@ function CashPage({ locations, inputs, updateInput }) {
   const sourceStructure = getWealthSource(inputs.wealthSourceStructure);
   const saleType = getRobsSaleTypeForSource(sourceStructure);
   const rollupModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType }), [locations, inputs, saleType]);
-  const llcModel = useMemo(() => calculateLlcModel(locations, inputs), [locations, inputs]);
-  const selectedBusinessModel = sourceStructure === "llc" ? llcModel : rollupModel;
   const personalModel = useMemo(
-    () => calculatePersonalModel(selectedBusinessModel, inputs, sourceStructure),
-    [selectedBusinessModel, inputs, sourceStructure],
+    () => calculatePersonalModel(rollupModel, inputs),
+    [rollupModel, inputs],
   );
 
   return (
@@ -2317,9 +2003,8 @@ function PersonalInputsPanel({ inputs, updateInput, personalModel }) {
   );
 }
 
-function PersonalDashboard({ personalModel, sourceStructure = "robs" }) {
-  const usesRobs = sourceStructure !== "llc";
-  const businessContributionLabel = sourceStructure === "llc" ? "LLC Contribution" : "C-Corp Contribution";
+function PersonalDashboard({ personalModel, sourceStructure = "robs-stock" }) {
+  const businessContributionLabel = "C-Corp Contribution";
   const sourceLabel = getWealthSourceLabel(sourceStructure);
   const totalCapitalGainsTaxes = personalModel.months.reduce((total, month) => total + month.capitalGainsTaxes, 0);
   const totalConversionTaxes = personalModel.months.reduce((total, month) => total + month.conversionTaxes, 0);
@@ -2359,13 +2044,11 @@ function PersonalDashboard({ personalModel, sourceStructure = "robs" }) {
             <strong>{money.format(totalCapitalGainsTaxes)}</strong>
             <small>Tax from VOO sales for living needs</small>
           </article>
-          {usesRobs && (
-            <article>
-              <span>ROBS Conversion Tax</span>
-              <strong>{money.format(totalConversionTaxes)}</strong>
-              <small>Personal tax paid on IRA conversion</small>
-            </article>
-          )}
+          <article>
+            <span>ROBS Conversion Tax</span>
+            <strong>{money.format(totalConversionTaxes)}</strong>
+            <small>Personal tax paid on IRA conversion</small>
+          </article>
         </div>
       </div>
       <section className="annualPanel">
@@ -2389,9 +2072,9 @@ function PersonalDashboard({ personalModel, sourceStructure = "robs" }) {
 		                <th>Age</th>
 		                <th>Beginning VOO</th>
 		                <th>{businessContributionLabel}</th>
-		                {usesRobs && <th>ROBS Conversion Tax</th>}
+		                <th>ROBS Conversion Tax</th>
 		                <th>VOO For Living</th>
-		                {usesRobs && <th>VOO For Conversion Tax</th>}
+		                <th>VOO For Conversion Tax</th>
 		                <th>Stock Sold</th>
 	                <th>Cap Gains Tax</th>
 		                <th>Investment Growth</th>
@@ -2406,9 +2089,9 @@ function PersonalDashboard({ personalModel, sourceStructure = "robs" }) {
 		                  <td>{num.format(month.age)}</td>
 		                  <td>{money.format(month.beginningInvestedBalance)}</td>
 		                  <td>{money.format(month.deployedToCorp)}</td>
-		                  {usesRobs && <td>{money.format(month.conversionTaxes)}</td>}
+		                  <td>{money.format(month.conversionTaxes)}</td>
 		                  <td>{money.format(month.livingNeedsFromStock)}</td>
-		                  {usesRobs && <td>{money.format(month.conversionTaxFromStock)}</td>}
+		                  <td>{money.format(month.conversionTaxFromStock)}</td>
 		                  <td>{money.format(month.stockSalesForLiving + month.stockSalesForConversionTax)}</td>
 		                  <td>{money.format(month.capitalGainsTaxes)}</td>
 		                  <td>{money.format(month.investmentReturn)}</td>
@@ -2427,11 +2110,9 @@ function PersonalPage({ locations, inputs, updateInput }) {
   const sourceStructure = getWealthSource(inputs.wealthSourceStructure);
   const saleType = getRobsSaleTypeForSource(sourceStructure);
   const rollupModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType }), [locations, inputs, saleType]);
-  const llcModel = useMemo(() => calculateLlcModel(locations, inputs), [locations, inputs]);
-  const selectedBusinessModel = sourceStructure === "llc" ? llcModel : rollupModel;
   const personalModel = useMemo(
-    () => calculatePersonalModel(selectedBusinessModel, inputs, sourceStructure),
-    [selectedBusinessModel, inputs, sourceStructure],
+    () => calculatePersonalModel(rollupModel, inputs),
+    [rollupModel, inputs],
   );
 
   return (
@@ -2449,7 +2130,6 @@ function PersonalPage({ locations, inputs, updateInput }) {
 function WealthOverviewInputsPanel({ inputs, updateInput, personalModel }) {
   const conversionTax =
     (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0);
-  const usesRobs = getWealthSource(inputs.wealthSourceStructure) !== "llc";
 
   return (
     <aside className="assumptions rollupInputs">
@@ -2486,57 +2166,30 @@ function WealthOverviewInputsPanel({ inputs, updateInput, personalModel }) {
             <span>Portfolio loan LTV limit</span>
             <PercentInput value={inputs.portfolioLoanLtvLimit} onChange={(value) => updateInput("portfolioLoanLtvLimit", value)} />
           </label>
-          {usesRobs ? (
-            <>
-              <label className="inputRow">
-                <span>Traditional IRA rollover</span>
-                <input
-                  type="number"
-                  step="1000"
-                  value={inputs.traditionalIraStartingBalance}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    updateInput("traditionalIraStartingBalance", value);
-                    updateInput("roth401kContribution", value);
-                  }}
-                />
-              </label>
-              <label className="inputRow">
-                <span>ROBS conversion tax</span>
-                <PercentInput
-                  value={inputs.robsConversionTaxRate}
-                  onChange={(value) => updateInput("robsConversionTaxRate", value)}
-                />
-              </label>
-              <div className="rollupLocationRow">
-                <strong>Conversion tax due</strong>
-                <span>{money.format(conversionTax)}</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <label className="inputRow">
-                <span>LLC starting cash</span>
-                <input
-                  type="number"
-                  step="1000"
-                  value={inputs.llcStartingCash}
-                  onChange={(event) => updateInput("llcStartingCash", Number(event.target.value))}
-                />
-              </label>
-              <label className="inputRow">
-                <span>Pass-through tax</span>
-                <PercentInput
-                  value={inputs.llcPassThroughTaxRate}
-                  onChange={(value) => updateInput("llcPassThroughTaxRate", value)}
-                />
-              </label>
-              <div className="rollupLocationRow">
-                <strong>Traditional IRA</strong>
-                <span>{money.format(inputs.traditionalIraStartingBalance)}</span>
-              </div>
-            </>
-          )}
+          <label className="inputRow">
+            <span>Traditional IRA rollover</span>
+            <input
+              type="number"
+              step="1000"
+              value={inputs.traditionalIraStartingBalance}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                updateInput("traditionalIraStartingBalance", value);
+                updateInput("roth401kContribution", value);
+              }}
+            />
+          </label>
+          <label className="inputRow">
+            <span>ROBS conversion tax</span>
+            <PercentInput
+              value={inputs.robsConversionTaxRate}
+              onChange={(value) => updateInput("robsConversionTaxRate", value)}
+            />
+          </label>
+          <div className="rollupLocationRow">
+            <strong>Conversion tax due</strong>
+            <span>{money.format(conversionTax)}</span>
+          </div>
           <div className="rollupLocationRow">
             <strong>Modeled months</strong>
             <span>{num.format(personalModel.months.length)}</span>
@@ -2570,16 +2223,13 @@ function WealthOverviewInputsPanel({ inputs, updateInput, personalModel }) {
 function WealthOverviewDashboard({
   companyRothModel,
   rothIraModel,
-  traditionalIraModel,
   personalModel,
   businessModel,
   inputs,
   sourceStructure,
 }) {
-  const usesRobs = sourceStructure !== "llc";
-  const structureAccountModel = usesRobs ? companyRothModel : traditionalIraModel;
-  const structureAccountLabel = usesRobs ? "ROBS Roth 401k" : "Traditional IRA";
-  const structureAccountNote = usesRobs ? "C-Corp ownership account" : "IRA remains invested outside LLC";
+  const structureAccountModel = companyRothModel;
+  const structureAccountLabel = "ROBS Roth 401k";
   const endingPersonalVoo = personalModel.endingInvestedBalance ?? 0;
   const endingPersonalCash = personalModel.endingCashBalance ?? 0;
   const totalWealth = structureAccountModel.endingBalance + rothIraModel.endingBalance + endingPersonalVoo + endingPersonalCash;
@@ -2591,8 +2241,7 @@ function WealthOverviewDashboard({
   const personalCashFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingCashBalance ?? endingPersonalCash;
   const structureAccountAfterTaxFor = (key) => {
     const value = endingBalanceFor(structureAccountModel, key);
-    if (usesRobs) return value;
-    return value - Math.max(0, value) * (Number(inputs.llcPassThroughTaxRate) || 0);
+    return value;
   };
   const scenarioAfterTaxTotal = (key) =>
     personalCashFor(key) +
@@ -2618,8 +2267,7 @@ function WealthOverviewDashboard({
   const portfolioLoanLtvLimit = Number(inputs.portfolioLoanLtvLimit) || 0;
   const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
   const afterTaxStructureAccount = (value) => {
-    if (usesRobs) return value;
-    return value - Math.max(0, value) * (Number(inputs.llcPassThroughTaxRate) || 0);
+    return value;
   };
   const monthlyWealthRows = personalModel.months.map((personalMonth, index) => {
     const rothIraMonth = rothIraModel.months[index] ?? {};
@@ -2782,7 +2430,7 @@ function WealthOverviewDashboard({
             <span>{structureAccountLabel}</span>
             <strong>{money.format(structureAccountModel.endingBalance)}</strong>
             <strong>{money.format(structureAccountAfterTax)}</strong>
-            <small>{usesRobs ? rangeLabel(structureAccountModel) : `${rangeLabel(structureAccountModel)} · ${structureAccountNote}`}</small>
+            <small>{rangeLabel(structureAccountModel)}</small>
           </div>
           <div className="wealthTotalRow">
             <span>Total</span>
@@ -2793,8 +2441,8 @@ function WealthOverviewDashboard({
         </div>
 
         <p className="wealthNote">
-          Wealth accounts sit outside the legal structure tabs. Use the source structure selector to compare the same
-          household account assumptions against ROBS or LLC business cash flows.
+          Wealth accounts sit outside the ROBS structure tab. Use the source scenario selector to compare stock-sale and
+          asset-sale exit treatment with the same household account assumptions.
         </p>
       </section>
       <section className="tablePanel">
@@ -2905,14 +2553,11 @@ function WealthOverview({ locations, inputs, updateInput }) {
   const sourceStructure = getWealthSource(inputs.wealthSourceStructure);
   const saleType = getRobsSaleTypeForSource(sourceStructure);
   const rollupModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType }), [locations, inputs, saleType]);
-  const llcModel = useMemo(() => calculateLlcModel(locations, inputs), [locations, inputs]);
-  const selectedBusinessModel = sourceStructure === "llc" ? llcModel : rollupModel;
   const companyRothModel = useMemo(() => calculateRothModel(rollupModel, inputs), [rollupModel, inputs]);
   const rothIraModel = useMemo(() => calculateRothIraModel(inputs), [inputs]);
-  const traditionalIraModel = useMemo(() => calculateTraditionalIraModel(inputs), [inputs]);
   const personalModel = useMemo(
-    () => calculatePersonalModel(selectedBusinessModel, inputs, sourceStructure),
-    [selectedBusinessModel, inputs, sourceStructure],
+    () => calculatePersonalModel(rollupModel, inputs),
+    [rollupModel, inputs],
   );
 
   return (
@@ -2924,9 +2569,8 @@ function WealthOverview({ locations, inputs, updateInput }) {
         <WealthOverviewDashboard
           companyRothModel={companyRothModel}
           rothIraModel={rothIraModel}
-          traditionalIraModel={traditionalIraModel}
           personalModel={personalModel}
-          businessModel={selectedBusinessModel}
+          businessModel={rollupModel}
           inputs={inputs}
           sourceStructure={sourceStructure}
         />
@@ -2938,117 +2582,6 @@ function WealthOverview({ locations, inputs, updateInput }) {
 function IraPage({ inputs, updateInput }) {
   const conversionTax =
     (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0);
-  const sourceStructure = getWealthSource(inputs.wealthSourceStructure);
-  const usesRobs = sourceStructure !== "llc";
-  const traditionalIraModel = useMemo(() => calculateTraditionalIraModel(inputs), [inputs]);
-  const totalGrowth = traditionalIraModel.months.reduce((total, month) => total + month.investmentReturn, 0);
-
-  if (!usesRobs) {
-    return (
-      <section className="workspace">
-        <div className="leftRail">
-          <aside className="assumptions rollupInputs">
-            <div className="panelTitle">
-              <h2>Traditional IRA Inputs</h2>
-            </div>
-            <section className="assumptionGroup">
-              <div className="groupFields">
-                <label className="inputRow">
-                  <span>Starting IRA</span>
-                  <input
-                    type="number"
-                    step="1000"
-                    value={inputs.traditionalIraStartingBalance}
-                    onChange={(event) => updateInput("traditionalIraStartingBalance", Number(event.target.value))}
-                  />
-                </label>
-                <label className="inputRow">
-                  <span>Downside return</span>
-                  <PercentInput value={inputs.rothDownsideReturn} onChange={(value) => updateInput("rothDownsideReturn", value)} />
-                </label>
-                <label className="inputRow">
-                  <span>Base return</span>
-                  <PercentInput value={inputs.rothAnnualReturn} onChange={(value) => updateInput("rothAnnualReturn", value)} />
-                </label>
-                <label className="inputRow">
-                  <span>Upside return</span>
-                  <PercentInput value={inputs.rothUpsideReturn} onChange={(value) => updateInput("rothUpsideReturn", value)} />
-                </label>
-                <p className="emptyState">
-                  Under the LLC structure, the Traditional IRA is not used for ROBS and remains invested through age 60.
-                </p>
-              </div>
-            </section>
-          </aside>
-        </div>
-        <div className="dashboard">
-          <div className="locationSnapshot">
-            <div>
-              <p className="eyebrow">IRA</p>
-              <h2>Traditional IRA Projection</h2>
-              <p>LLC structure · No ROBS rollover</p>
-            </div>
-            <div className="locationKpis">
-              <article>
-                <span>Starting Balance</span>
-                <strong>{money.format(traditionalIraModel.startingBalance)}</strong>
-                <small>Traditional IRA remains intact</small>
-              </article>
-              <article>
-                <span>Investment Growth</span>
-                <strong>{money.format(totalGrowth)}</strong>
-                <small>Base case compounded growth</small>
-              </article>
-              <article>
-                <span>Ending Balance</span>
-                <strong>{money.format(traditionalIraModel.endingBalance)}</strong>
-                <small>Pre-withdrawal tax value through age {num.format(traditionalIraModel.ageAtEnd)}</small>
-              </article>
-            </div>
-          </div>
-          <section className="annualPanel">
-            <div className="chartHeader">
-              <div className="panelTitle">
-                <h2>Traditional IRA Balance Scenarios</h2>
-              </div>
-            </div>
-            <ScenarioLineChart ariaLabel="Traditional IRA balance scenarios through age 60" scenarios={traditionalIraModel.scenarios} />
-          </section>
-          <section className="tablePanel">
-            <div className="panelTitle">
-              <h2>Monthly Traditional IRA Model</h2>
-            </div>
-            <div className="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Month</th>
-                    <th>Calendar</th>
-                    <th>Age</th>
-                    <th>Beginning Balance</th>
-                    <th>Investment Growth</th>
-                    <th>Ending Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {traditionalIraModel.months.map((month) => (
-                    <tr key={month.month}>
-                      <td>{month.month}</td>
-                      <td>{month.monthLabel}</td>
-                      <td>{num.format(month.age)}</td>
-                      <td>{money.format(month.beginningBalance)}</td>
-                      <td>{money.format(month.investmentReturn)}</td>
-                      <td>{money.format(month.endingBalance)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="workspace">
@@ -3207,13 +2740,8 @@ function ExitInputsPanel({ inputs, updateInput }) {
           Structure Tax Treatment
         </button>
         <div className="groupFields">
-          <label className="inputRow">
-            <span>LLC sale tax rate</span>
-            <PercentInput value={inputs.llcSaleTaxRate} onChange={(value) => updateInput("llcSaleTaxRate", value)} />
-          </label>
           <p className="emptyState">
-            Exit assumptions are shared across all projections. ROBS is shown as both stock-sale and asset-sale cases;
-            LLC is modeled as an implied asset sale.
+            Exit assumptions are shared across the ROBS stock-sale and asset-sale cases.
           </p>
         </div>
       </section>
@@ -3221,7 +2749,7 @@ function ExitInputsPanel({ inputs, updateInput }) {
   );
 }
 
-function ExitScenarioDashboard({ locations, robsStockModel, robsAssetModel, llcModel, inputs }) {
+function ExitScenarioDashboard({ locations, robsStockModel, robsAssetModel, inputs }) {
   const scenarioRows = [
     {
       key: "robs-stock",
@@ -3240,14 +2768,6 @@ function ExitScenarioDashboard({ locations, robsStockModel, robsAssetModel, llcM
       detailLabel: "Roth 401k / Personal",
       detailValue: (month) =>
         `${money.format(month?.roth401kSaleProceeds ?? 0)} / ${money.format(month?.personalSaleProceeds ?? 0)}`,
-    },
-    {
-      key: "llc",
-      label: "LLC + Implied Asset Sale",
-      model: llcModel,
-      taxKey: "saleTaxes",
-      detailLabel: "Owner",
-      detailValue: (month) => money.format(month?.saleNetProceeds ?? 0),
     },
   ].map((scenario) => {
     const saleMonth = scenario.model.months.find((month) => month.saleNetProceeds !== 0) ?? scenario.model.months.at(-1);
@@ -3353,7 +2873,6 @@ function ExitScenarioDashboard({ locations, robsStockModel, robsAssetModel, llcM
 function ExitScenarioPage({ locations, inputs, updateInput }) {
   const robsStockModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType: "stock" }), [locations, inputs]);
   const robsAssetModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType: "asset" }), [locations, inputs]);
-  const llcModel = useMemo(() => calculateLlcModel(locations, inputs), [locations, inputs]);
 
   return (
     <section className="workspace">
@@ -3365,7 +2884,6 @@ function ExitScenarioPage({ locations, inputs, updateInput }) {
           locations={locations}
           robsStockModel={robsStockModel}
           robsAssetModel={robsAssetModel}
-          llcModel={llcModel}
           inputs={inputs}
         />
       </div>
@@ -3388,11 +2906,10 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
     <>
       <div className="wealthSourceBar">
         <label>
-          <span>Source structure</span>
+          <span>Source scenario</span>
           <select value={sourceStructure} onChange={(event) => updateInput("wealthSourceStructure", event.target.value)}>
             <option value="robs-stock">ROBS + Stock Sale</option>
             <option value="robs-asset">ROBS + Asset Sale</option>
-            <option value="llc">LLC</option>
           </select>
         </label>
       </div>
@@ -3413,279 +2930,6 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
       </ScenarioShell>
     </>
   );
-}
-
-function LlcInputsPanel({ inputs, locations, updateInput, llcModel }) {
-  const modeledMonths = Math.max(1, Math.min(180, monthDiff(inputs.modelStartDate, inputs.saleDate) + 1));
-
-  return (
-    <aside className="assumptions rollupInputs">
-      <div className="panelTitle">
-        <h2>LLC Inputs</h2>
-      </div>
-      <section className="assumptionGroup">
-        <div className="groupFields">
-          <label className="inputRow">
-            <span>LLC entity</span>
-            <input value={inputs.llcEntityName} onChange={(event) => updateInput("llcEntityName", event.target.value)} />
-          </label>
-          <label className="inputRow">
-            <span>Model start</span>
-            <input
-              type="date"
-              value={inputs.modelStartDate}
-              onChange={(event) => updateInput("modelStartDate", event.target.value)}
-            />
-          </label>
-          <div className="rollupLocationRow">
-            <strong>Modeled months</strong>
-            <span>{num.format(modeledMonths)}</span>
-          </div>
-          <label className="inputRow">
-            <span>Starting LLC cash</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.llcStartingCash}
-              onChange={(event) => updateInput("llcStartingCash", Number(event.target.value))}
-            />
-          </label>
-          <label className="inputRow">
-            <span>Min working capital</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.minimumWorkingCapital}
-              onChange={(event) => updateInput("minimumWorkingCapital", Number(event.target.value))}
-            />
-          </label>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Taxes
-        </button>
-        <div className="groupFields">
-          <label className="inputRow">
-            <span>Pass-through tax</span>
-            <PercentInput value={inputs.llcPassThroughTaxRate} onChange={(value) => updateInput("llcPassThroughTaxRate", value)} />
-          </label>
-          <label className="inputRow">
-            <span>Sale tax rate</span>
-            <PercentInput value={inputs.llcSaleTaxRate} onChange={(value) => updateInput("llcSaleTaxRate", value)} />
-          </label>
-          <p className="emptyState">
-            LLC taxes are modeled as personal pass-through taxes. Taxable income = operating profit - interest. Sale
-            taxes are applied to estimated taxable sale proceeds.
-          </p>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Distribution Policy
-        </button>
-        <div className="groupFields">
-          <div className="rollupLocationRow">
-            <strong>Starts after last open</strong>
-            <span>{llcModel.distributionStartDate ? formatMonthLabel(llcModel.distributionStartDate) : "No locations"}</span>
-          </div>
-          <label className="inputRow">
-            <span>Cash floor</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.llcDistributionCashFloor}
-              onChange={(event) => updateInput("llcDistributionCashFloor", Number(event.target.value))}
-            />
-          </label>
-          <p className="emptyState">After the latest projected opening, monthly excess cash above the floor is distributed to you.</p>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Included Locations
-          <span>{num.format(locations.length)}</span>
-        </button>
-        <div className="groupFields">
-          {locations.length === 0 ? (
-            <p className="emptyState">No active locations included.</p>
-          ) : (
-            locations.map((location) => (
-              <div className="rollupLocationRow" key={location.id}>
-                <strong>{location.locationName}</strong>
-                <span>{location.projectedOpenDate}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-    </aside>
-  );
-}
-
-function LlcDashboard({ inputs, locations, llcModel }) {
-  const summary = getPortfolioSummary(locations);
-  const month36 = llcModel.months[35] ?? llcModel.months.at(-1);
-  const [chartMetric, setChartMetric] = useState("operatingIncome");
-  const chartMetricConfig = LLC_CHART_METRICS[chartMetric];
-
-  return (
-    <section className="dashboard">
-      <div className="locationSnapshot">
-        <div>
-          <p className="eyebrow">LLC Rollup</p>
-          <h2>{inputs.llcEntityName}</h2>
-          <p>
-            {num.format(locations.length)} locations · Pass-through tax model
-          </p>
-        </div>
-        <div className="locationKpis">
-          <article>
-            <span>Starting Cash</span>
-            <strong>{money.format(llcModel.startingCash)}</strong>
-            <small>{money.format(llcModel.minimumWorkingCapital)} working capital floor</small>
-          </article>
-          <article>
-            <span>Total Investment</span>
-            <strong>{money.format(summary.totalInitialInvestment)}</strong>
-            <small>All location startup capital</small>
-          </article>
-          <article>
-            <span>M36 Revenue</span>
-            <strong>{money.format(month36?.operatingRevenue ?? 0)}</strong>
-            <small>{num.format(month36?.totalMembers ?? 0)} members</small>
-          </article>
-          <article>
-            <span>M36 Debt Balance</span>
-            <strong>{money.format(month36?.debtBalance ?? 0)}</strong>
-            <small>{money.format(month36?.totalDistributions ?? 0)} monthly distributions</small>
-          </article>
-        </div>
-      </div>
-      <section className="annualPanel">
-        <div className="chartHeader">
-          <div className="panelTitle">
-            <h2>{chartMetricConfig.title}</h2>
-          </div>
-          <div className="segmentedControl" aria-label="LLC chart metric">
-            {Object.entries(LLC_CHART_METRICS).map(([key, option]) => (
-              <button
-                className={chartMetric === key ? "active" : ""}
-                key={key}
-                onClick={() => setChartMetric(key)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <AnnualRollupChart metric={chartMetric} years={llcModel.years} metricConfigMap={LLC_CHART_METRICS} />
-      </section>
-      <section className="tablePanel">
-        <div className="panelTitle">
-          <h2>Monthly LLC Model</h2>
-        </div>
-        <div className="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Calendar</th>
-                <th>Active Locations</th>
-                <th>Members</th>
-                <th>Beginning Cash</th>
-                <th>Pre-Open Capex</th>
-                <th>LLC Cash Used</th>
-                <th>New Debt</th>
-                <th>Revenue</th>
-                <th>Expenses</th>
-                <th>Operating Profit</th>
-                <th>Debt Service</th>
-                <th>Principal</th>
-                <th>Interest</th>
-                <th>Taxable Income</th>
-                <th>Pass-Through Taxes</th>
-                <th>Owner Income After Tax</th>
-                <th>Cash Flow</th>
-                <th>Distributions</th>
-                <th>TTM EBITDA Proxy</th>
-                <th>Sale EV</th>
-                <th>Debt Payoff</th>
-                <th>Cash at Close</th>
-                <th>Sale Taxes</th>
-                <th>Sale Costs</th>
-                <th>Net Sale Proceeds</th>
-                <th>Ending Cash</th>
-                <th>Debt Balance</th>
-                <th>Margin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {llcModel.months.map((month) => (
-                <tr key={month.month}>
-                  <td>{month.month}</td>
-                  <td>{month.monthLabel}</td>
-                  <td>{num.format(month.activeLocations)}</td>
-                  <td>{num.format(month.totalMembers)}</td>
-                  <td>{money.format(month.beginningCash)}</td>
-                  <td>{money.format(month.preOpenInvestment)}</td>
-                  <td>{money.format(month.llcCashUsed)}</td>
-                  <td>{money.format(month.newDebt)}</td>
-                  <td>{money.format(month.operatingRevenue)}</td>
-                  <td>{money.format(month.totalExpenses)}</td>
-                  <td className={month.grossOperatingProfit < 0 ? "negative" : "positive"}>
-                    {money.format(month.grossOperatingProfit)}
-                  </td>
-                  <td>{money.format(month.debtService)}</td>
-                  <td>{money.format(month.debtPrincipal)}</td>
-                  <td>{money.format(month.debtInterest)}</td>
-                  <td>{money.format(month.taxableIncome)}</td>
-                  <td>{money.format(month.passThroughTaxes)}</td>
-                  <td className={month.ownerIncomeAfterTax < 0 ? "negative" : "positive"}>
-                    {money.format(month.ownerIncomeAfterTax)}
-                  </td>
-                  <td className={month.netCash < 0 ? "negative" : "positive"}>{money.format(month.netCash)}</td>
-                  <td>{money.format(month.totalDistributions)}</td>
-                  <td>{money.format(month.ttmOperatingProfit)}</td>
-                  <td>{money.format(month.saleEnterpriseValue)}</td>
-                  <td>{money.format(month.saleDebtPayoff)}</td>
-                  <td>{money.format(month.saleCashAtClose)}</td>
-                  <td>{money.format(month.saleTaxes)}</td>
-                  <td>{money.format(month.saleTransactionCosts)}</td>
-                  <td className={month.saleNetProceeds < 0 ? "negative" : "positive"}>
-                    {money.format(month.saleNetProceeds)}
-                  </td>
-                  <td>{money.format(month.endingCash)}</td>
-                  <td>{money.format(month.debtBalance)}</td>
-                  <td>{pct.format(month.operatingMargin)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-  );
-}
-
-function LlcRollupPage({ locations, inputs, updateInput }) {
-  const llcModel = useMemo(() => calculateLlcModel(locations, inputs), [locations, inputs]);
-
-  return (
-    <section className="workspace">
-      <div className="leftRail">
-        <LlcInputsPanel inputs={inputs} locations={locations} updateInput={updateInput} llcModel={llcModel} />
-      </div>
-      <div>
-        <LlcDashboard inputs={inputs} locations={locations} llcModel={llcModel} />
-      </div>
-    </section>
-  );
-}
-
-function LlcStructurePage({ locations, inputs, updateInput }) {
-  return <LlcRollupPage locations={locations} inputs={inputs} updateInput={updateInput} />;
 }
 
 export function App() {
@@ -3823,7 +3067,7 @@ export function App() {
           <p className="eyebrow">The Yard Gym Opportunity</p>
           <h1>Financial & Operations Model</h1>
           <p className="subtitle">
-            Hart Fitness, Inc. parent model with location-level LLC operating models.
+            Hart Fitness, Inc. parent model with location-level operating models.
           </p>
         </div>
         <div className="headerActions">
@@ -3854,13 +3098,6 @@ export function App() {
           ROBS Structure
         </button>
         <button
-          className={activeView === "llc" ? "active" : ""}
-          onClick={() => setActiveView("llc")}
-          type="button"
-        >
-          LLC Structure
-        </button>
-        <button
           className={activeView === "exit" ? "active" : ""}
           onClick={() => setActiveView("exit")}
           type="button"
@@ -3878,12 +3115,6 @@ export function App() {
 
       {activeView === "robs" ? (
         <RobsStructurePage locations={activeScenarioLocations} inputs={rollupInputs} updateInput={updateRollupInput} />
-      ) : activeView === "llc" ? (
-        <LlcStructurePage
-          locations={activeScenarioLocations}
-          inputs={rollupInputs}
-          updateInput={updateRollupInput}
-        />
       ) : activeView === "exit" ? (
         <ExitScenarioPage locations={activeScenarioLocations} inputs={rollupInputs} updateInput={updateRollupInput} />
       ) : activeView === "wealth" ? (
