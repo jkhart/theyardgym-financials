@@ -20,7 +20,7 @@ const DEFAULT_ROLLUP_INPUTS = {
   entityName: "Hart Fitness, Inc.",
   modelStartDate: "2026-07-01",
   roth401kContribution: 450000,
-  personalContribution: 50000,
+  personalContribution: 0,
   traditionalIraStartingBalance: 450000,
   robsConversionTaxRate: 0.35,
   rothIraStartingBalance: 500000,
@@ -57,6 +57,7 @@ const FIXED_ROLLUP_INPUTS = {
   entityName: "Hart Fitness, Inc.",
   modelStartDate: "2026-07-01",
   roth401kContribution: 450000,
+  personalContribution: 0,
   traditionalIraStartingBalance: 450000,
   federalTaxRate: 0.21,
   stateTaxRate: 0.0884,
@@ -986,15 +987,6 @@ function RollupInputsPanel({ inputs, locations, updateInput }) {
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
-          <label className="inputRow">
-            <span>Personal cash</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.personalContribution}
-              onChange={(event) => updateInput("personalContribution", Number(event.target.value))}
-            />
-          </label>
           <label className="inputRow">
             <span>Min working capital</span>
             <input
