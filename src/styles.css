@@ -692,6 +692,13 @@ footer {
   color: #fffdf8;
 }
 
+.statementHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .profitChartWrap {
   margin-top: 14px;
   max-width: 100%;

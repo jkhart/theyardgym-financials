@@ -4,6 +4,7 @@ import { money, pct } from "../lib/formatting.js";
 
 export function Dashboard({ model, locationMeta }) {
   const [expandedYear, setExpandedYear] = useState(null);
+  const [activeStatement, setActiveStatement] = useState("income");
 
   const monthsByYear = model.months.reduce((groups, month) => {
     const year = Number(String(month.date).slice(0, 4));
@@ -17,22 +18,54 @@ export function Dashboard({ model, locationMeta }) {
     setExpandedYear((current) => (current === year ? null : year));
   }
 
+  const statements = {
+    income: {
+      title: "Income Statement",
+      columns: [
+        ["operatingRevenue", "Revenue", "money"],
+        ["totalExpenses", "Expenses", "money"],
+        ["grossOperatingProfit", "Operating Income", "money"],
+        ["corporateDebtService", "Interest Expense", "money"],
+        ["corporateTaxes", "Corp Taxes", "money"],
+        ["netIncome", "Net Income", "money"],
+        ["operatingMargin", "Margin", "percent"],
+      ],
+    },
+    cashFlow: {
+      title: "Cash Flow",
+      columns: [
+        ["beginningCash", "Beginning Cash", "money"],
+        ["grossOperatingProfit", "Operating Income", "money"],
+        ["corporateDebtService", "Interest Paid", "money"],
+        ["corporateTaxes", "Taxes Paid", "money"],
+        ["cCorpCashUsed", "Build-Out Cash Used", "money"],
+        ["totalDistributions", "Distributions", "money"],
+        ["cashChange", "Net Change", "money"],
+        ["endingCash", "Ending Cash", "money"],
+      ],
+    },
+  };
+  const activeConfig = statements[activeStatement];
+
+  function formatCell(row, key, type) {
+    const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : (row[key] ?? 0);
+    if (type === "percent") return pct.format(value);
+    return money.format(value);
+  }
+
+  function cellClass(row, key, type) {
+    if (type === "percent") return "";
+    const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : (row[key] ?? 0);
+    if (!["grossOperatingProfit", "netIncome", "cashChange", "endingCash"].includes(key)) return "";
+    return value < 0 ? "negative" : "positive";
+  }
+
   function renderFinancialCells(row) {
-    return (
-      <>
-        <td>{money.format(row.operatingRevenue)}</td>
-        <td>{money.format(row.totalExpenses)}</td>
-        <td className={row.grossOperatingProfit < 0 ? "negative" : "positive"}>
-          {money.format(row.grossOperatingProfit)}
-        </td>
-        <td>{money.format(row.corporateDebtService ?? 0)}</td>
-        <td>{money.format(row.corporateTaxes ?? 0)}</td>
-        <td className={(row.netIncome ?? row.grossOperatingProfit) < 0 ? "negative" : "positive"}>
-          {money.format(row.netIncome ?? row.grossOperatingProfit)}
-        </td>
-        <td>{pct.format(row.operatingMargin)}</td>
-      </>
-    );
+    return activeConfig.columns.map(([key, , type]) => (
+      <td className={cellClass(row, key, type)} key={key}>
+        {formatCell(row, key, type)}
+      </td>
+    ));
   }
 
   return (
@@ -62,22 +95,32 @@ export function Dashboard({ model, locationMeta }) {
       </div>
 
       <div className="tablePanel">
-        <div className="panelTitle">
-          <Calculator size={18} />
-          <h2>Annual Model</h2>
+        <div className="statementHeader">
+          <div className="panelTitle">
+            <Calculator size={18} />
+            <h2>{activeConfig.title}</h2>
+          </div>
+          <div className="segmentedControl" aria-label="Financial statement">
+            {Object.entries(statements).map(([key, statement]) => (
+              <button
+                className={activeStatement === key ? "active" : ""}
+                key={key}
+                onClick={() => setActiveStatement(key)}
+                type="button"
+              >
+                {statement.title}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="tableWrap">
           <table>
             <thead>
               <tr>
                 <th>Year</th>
-                <th>Revenue</th>
-                <th>Expenses</th>
-                <th>Operating Income</th>
-                <th>Interest Expense</th>
-                <th>Corp Taxes</th>
-                <th>Net Income</th>
-                <th>Margin</th>
+                {activeConfig.columns.map(([, label]) => (
+                  <th key={label}>{label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
