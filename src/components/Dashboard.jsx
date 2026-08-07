@@ -38,31 +38,51 @@ export function Dashboard({ model, locationMeta }) {
         ["netIncome", "Net Income", "money"],
         ["cCorpCashUsed", "Capital Expenditures", "money"],
         ["totalDistributions", "Distributions", "money"],
-        ["saleNetProceeds", "Net Sale Proceeds", "money"],
         ["cashChange", "Net Change", "money"],
         ["endingCash", "Ending Cash", "money"],
+      ],
+    },
+    balanceSheet: {
+      title: "Balance Sheet",
+      columns: [
+        ["endingCash", "Cash", "money"],
+        ["debtBalance", "Debt", "money"],
+        ["bookEquity", "Equity", "money"],
+      ],
+    },
+    exitValuation: {
+      title: "Exit / Valuation",
+      columns: [
+        ["ttmOperatingProfit", "TTM EBITDA Proxy", "money"],
+        ["saleEnterpriseValue", "Enterprise Value", "money"],
+        ["saleDebtPayoff", "Debt Payoff", "money"],
+        ["saleCashAtClose", "Cash at Close", "money"],
+        ["saleTransactionCosts", "Transaction Costs", "money"],
+        ["saleCorporateTaxes", "Sale Taxes", "money"],
+        ["saleNetProceeds", "Net Sale Proceeds", "money"],
       ],
     },
   };
   const activeConfig = statements[activeStatement];
 
   function formatCell(row, key, type) {
-    const value =
-      key === "cashChange"
-        ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) + (row.saleNetProceeds ?? 0)
-        : (row[key] ?? 0);
+    const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : getRowValue(row, key);
     if (type === "percent") return pct.format(value);
     return money.format(value);
   }
 
   function cellClass(row, key, type) {
     if (type === "percent") return "";
-    const value =
-      key === "cashChange"
-        ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) + (row.saleNetProceeds ?? 0)
-        : (row[key] ?? 0);
-    if (!["grossOperatingProfit", "netIncome", "saleNetProceeds", "cashChange", "endingCash"].includes(key)) return "";
+    const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : getRowValue(row, key);
+    if (!["grossOperatingProfit", "netIncome", "saleNetProceeds", "cashChange", "endingCash", "bookEquity"].includes(key)) {
+      return "";
+    }
     return value < 0 ? "negative" : "positive";
+  }
+
+  function getRowValue(row, key) {
+    if (key === "bookEquity") return (row.endingCash ?? 0) - (row.debtBalance ?? 0);
+    return row[key] ?? 0;
   }
 
   function renderFinancialCells(row) {
