@@ -1,9 +1,8 @@
 import { Fragment, useState } from "react";
 import { BarChart3, Calculator } from "lucide-react";
-import { formatValue, money, pct } from "../lib/formatting.js";
+import { money, pct } from "../lib/formatting.js";
 
 export function Dashboard({ model, locationMeta }) {
-  const firstThreeYears = model.years.slice(0, 3);
   const [expandedYear, setExpandedYear] = useState(null);
 
   const monthsByYear = model.months.reduce((groups, month) => {
@@ -59,22 +58,6 @@ export function Dashboard({ model, locationMeta }) {
               <dd>Rollup model</dd>
             </dl>
           </article>
-          {firstThreeYears.map((year) => (
-            <article key={year.year}>
-              <span>Year {year.year}</span>
-              <strong>{money.format(year.grossOperatingProfit)}</strong>
-              <dl>
-                <dt>Revenue</dt>
-                <dd>{money.format(year.operatingRevenue)}</dd>
-                <dt>Expenses</dt>
-                <dd>{money.format(year.totalExpenses)}</dd>
-                <dt>Members</dt>
-                <dd>{formatValue(year.totalMembers, "number")}</dd>
-                <dt>Margin</dt>
-                <dd>{pct.format(year.operatingMargin)}</dd>
-              </dl>
-            </article>
-          ))}
         </div>
       </div>
 

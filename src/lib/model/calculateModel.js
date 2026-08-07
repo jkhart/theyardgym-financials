@@ -36,7 +36,7 @@ function inflationFactor(rate, elapsedMonths) {
 export function calculateModel(a, options = {}) {
   const projectedOpenDate = parseDate(options.projectedOpenDate);
   const modelStartDate = parseDate(options.modelStartDate);
-  const operatingMonths = Math.max(36, Number(options.operatingMonths) || 36);
+  const operatingMonths = Math.max(1, Number(options.operatingMonths) || 1);
   const monthlyRentBase = a.squareFeet * a.rentPsfMonthly;
   const openingRentFactor = inflationFactor(a.annualRentIncrease, monthDiff(modelStartDate, projectedOpenDate));
   const rentalDeposit = monthlyRentBase * openingRentFactor * a.depositMonths;
@@ -189,7 +189,8 @@ export function calculateModel(a, options = {}) {
     };
   });
 
-  const years = [0, 1, 2].map((yearIndex) => {
+  const yearCount = Math.ceil(months.length / 12);
+  const years = Array.from({ length: yearCount }, (_, yearIndex) => {
     const slice = months.slice(yearIndex * 12, yearIndex * 12 + 12);
     const sum = (key) => slice.reduce((acc, row) => acc + row[key], 0);
     const end = slice.at(-1);

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Download, Dumbbell, RotateCcw } from "lucide-react";
 import { Dashboard } from "./Dashboard.jsx";
 import { AssumptionsPanel } from "./AssumptionsPanel.jsx";
-import { getPortfolioSummary } from "./PortfolioSummary.jsx";
 import { money, num, pct } from "../lib/formatting.js";
 import { calculateModel } from "../lib/model/calculateModel.js";
 import { DEFAULT_ASSUMPTIONS } from "../lib/model/defaults.js";
@@ -200,7 +199,7 @@ function loadSharedAssumptions() {
 
 function buildLocationRecords({ assumptions, modelEndDate, modelStartDate, schedule }) {
   return schedule.map((location) => {
-    const operatingMonths = modelEndDate ? monthDiff(location.projectedOpenDate, modelEndDate) + 1 : 36;
+    const operatingMonths = modelEndDate ? monthDiff(location.projectedOpenDate, modelEndDate) + 1 : 1;
     const model = calculateModel(assumptions, {
       projectedOpenDate: location.projectedOpenDate,
       modelStartDate,
@@ -222,7 +221,6 @@ function buildLocationRecords({ assumptions, modelEndDate, modelStartDate, sched
         ownerInjection: model.ownerInjection,
         loanAmount: model.loanAmount,
         monthlyLoanPayment: model.monthlyLoanPayment,
-        month36: model.months[35],
         preOpeningSummary: model.preOpeningMonths,
         monthlySummary: model.months,
         annualSummary: model.years,
@@ -943,38 +941,6 @@ function calculatePersonalModel(businessModel, inputs) {
   };
 }
 
-function LocationSnapshot({ locationMeta, model }) {
-  const month36 = model.months[35];
-  const operatingBreakeven = model.months.find((m) => m.grossOperatingProfit > 0)?.month ?? null;
-
-  return (
-    <section className="locationSnapshot">
-      <div>
-        <p className="eyebrow">Selected Location</p>
-        <h2>{locationMeta.locationName}</h2>
-        <p>{locationMeta.scenarioName} · Opens {locationMeta.projectedOpenDate}</p>
-      </div>
-      <div className="locationKpis">
-        <article>
-          <span>Month 36 Revenue</span>
-          <strong>{money.format(month36.operatingRevenue)}</strong>
-          <small>{num.format(month36.totalMembers)} members</small>
-        </article>
-        <article>
-          <span>Month 36 Operating Profit</span>
-          <strong>{money.format(month36.grossOperatingProfit)}</strong>
-          <small>{pct.format(month36.operatingMargin)} operating margin</small>
-        </article>
-        <article>
-          <span>Operating Breakeven</span>
-          <strong>{operatingBreakeven ? `Month ${operatingBreakeven}` : "Not reached"}</strong>
-          <small>Before Hart Fitness debt service</small>
-        </article>
-      </div>
-    </section>
-  );
-}
-
 function PercentInput({ value, onChange }) {
   const [draft, setDraft] = useState(() => String((Number(value) || 0) * 100));
 
@@ -1236,8 +1202,11 @@ function AnnualRollupChart({ metric, years, metricConfigMap = ROLLUP_CHART_METRI
 }
 
 function RollupDashboard({ inputs, locations, rollupModel }) {
-  const summary = getPortfolioSummary(locations);
-  const month36 = rollupModel.months[35] ?? rollupModel.months.at(-1);
+  const totalInitialInvestment = locations.reduce(
+    (total, location) => total + (location.outputs.totalInitialInvestment ?? 0),
+    0,
+  );
+  const finalMonth = rollupModel.months.at(-1);
   const [chartMetric, setChartMetric] = useState("operatingIncome");
   const chartMetricConfig = ROLLUP_CHART_METRICS[chartMetric];
 
@@ -1259,18 +1228,18 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
           </article>
           <article>
             <span>Total Investment</span>
-            <strong>{money.format(summary.totalInitialInvestment)}</strong>
+            <strong>{money.format(totalInitialInvestment)}</strong>
             <small>All location startup capital</small>
           </article>
           <article>
-            <span>M36 Revenue</span>
-            <strong>{money.format(month36?.operatingRevenue ?? 0)}</strong>
-            <small>{num.format(month36?.totalMembers ?? 0)} members</small>
+            <span>Ending Revenue</span>
+            <strong>{money.format(finalMonth?.operatingRevenue ?? 0)}</strong>
+            <small>{num.format(finalMonth?.totalMembers ?? 0)} members</small>
           </article>
           <article>
-            <span>M36 Debt Balance</span>
-            <strong>{money.format(month36?.debtBalance ?? 0)}</strong>
-            <small>{money.format(month36?.totalDistributions ?? 0)} monthly distributions</small>
+            <span>Ending Debt Balance</span>
+            <strong>{money.format(finalMonth?.debtBalance ?? 0)}</strong>
+            <small>{money.format(finalMonth?.totalDistributions ?? 0)} monthly distributions</small>
           </article>
         </div>
       </div>
