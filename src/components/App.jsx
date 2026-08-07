@@ -342,6 +342,10 @@ function calculateRollupModel(locations, inputs, options = {}) {
       operatingRevenue: 0,
       totalExpenses: 0,
       grossOperatingProfit: 0,
+      locationExpenses: 0,
+      locationOperatingProfit: 0,
+      corporateTotalExpenses: 0,
+      corporateOperatingProfit: 0,
       ownerSalary: 0,
       corporateDebtService: 0,
       debtPrincipal: 0,
@@ -412,6 +416,12 @@ function calculateRollupModel(locations, inputs, options = {}) {
       month.brokerageCashFromSalary = month.ownerSalary;
       brokerageCashAvailable += month.ownerSalary;
     }
+    month.locationExpenses = month.totalExpenses;
+    month.locationOperatingProfit = month.grossOperatingProfit;
+    month.corporateTotalExpenses = month.totalExpenses + month.ownerSalary;
+    month.corporateOperatingProfit = month.grossOperatingProfit - month.ownerSalary;
+    month.totalExpenses = month.corporateTotalExpenses;
+    month.grossOperatingProfit = month.corporateOperatingProfit;
     const livingNeed = getMonthlyLivingNeed(inputs, month.month - 1);
     month.brokerageCashUsedForLiving = Math.min(livingNeed, brokerageCashAvailable);
     brokerageCashAvailable -= month.brokerageCashUsedForLiving;
@@ -425,7 +435,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       month.debtPrincipal += principal;
       month.debtInterest += interest;
     });
-    month.taxableIncome = Math.max(0, month.grossOperatingProfit - month.ownerSalary - month.debtInterest);
+    month.taxableIncome = Math.max(0, month.corporateOperatingProfit - month.debtInterest);
     month.corporateTaxes = month.taxableIncome * combinedTaxRate;
     cCorpCash -= month.corporateTaxes;
     cCorpCash -= month.corporateDebtService;
@@ -470,10 +480,9 @@ function calculateRollupModel(locations, inputs, options = {}) {
       }
     });
 
-    month.netIncome = month.grossOperatingProfit - month.ownerSalary - month.debtInterest - month.corporateTaxes;
+    month.netIncome = month.corporateOperatingProfit - month.debtInterest - month.corporateTaxes;
     month.netCash =
-      month.grossOperatingProfit -
-      month.ownerSalary -
+      month.corporateOperatingProfit -
       month.corporateTaxes -
       month.corporateDebtService -
       month.cCorpCashUsed;
@@ -489,12 +498,12 @@ function calculateRollupModel(locations, inputs, options = {}) {
     month.endingCash = cCorpCash;
     month.endingBrokerageCash = brokerageCashAvailable;
     month.debtBalance = activeLoans.reduce((total, loan) => total + loan.balance, 0);
-    month.operatingMargin = month.operatingRevenue ? month.grossOperatingProfit / month.operatingRevenue : 0;
+    month.operatingMargin = month.operatingRevenue ? month.corporateOperatingProfit / month.operatingRevenue : 0;
   });
 
   months.forEach((month, index) => {
     const trailingMonths = months.slice(Math.max(0, index - 11), index + 1);
-    month.ttmOperatingProfit = trailingMonths.reduce((total, row) => total + row.grossOperatingProfit, 0);
+    month.ttmOperatingProfit = trailingMonths.reduce((total, row) => total + row.corporateOperatingProfit, 0);
     if (!saleDate || toMonthKey(month.date) !== toMonthKey(saleDate)) return;
     month.saleEnterpriseValue = month.ttmOperatingProfit * ebitdaMultiple;
     month.saleDebtPayoff = month.debtBalance;
@@ -521,7 +530,8 @@ function calculateRollupModel(locations, inputs, options = {}) {
     const sum = (key) => slice.reduce((total, row) => total + row[key], 0);
     const end = slice.at(-1);
     const operatingRevenue = sum("operatingRevenue");
-    const grossOperatingProfit = sum("grossOperatingProfit");
+    const totalExpenses = sum("corporateTotalExpenses");
+    const grossOperatingProfit = sum("corporateOperatingProfit");
     const endingCash = end?.endingCash ?? startingCash;
     const debtBalance = end?.debtBalance ?? 0;
     const enterpriseValue = grossOperatingProfit * ebitdaMultiple;
@@ -529,7 +539,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       calendarYear,
       preOpenInvestment: sum("preOpenInvestment"),
       operatingRevenue,
-      totalExpenses: sum("totalExpenses"),
+      totalExpenses,
       grossOperatingProfit,
       ownerSalary: sum("ownerSalary"),
       brokerageCashFromSalary: sum("brokerageCashFromSalary"),
