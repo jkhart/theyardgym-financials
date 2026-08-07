@@ -49,6 +49,9 @@ export function Dashboard({ model, locationMeta }) {
         ["valuationEnterpriseValue", "Enterprise Value", "money"],
         ["debtBalance", "Debt", "money"],
         ["valuationEquityValue", "Estimated Sale Value", "money"],
+        ["valuationTransactionCosts", "Transaction Costs", "money"],
+        ["valuationSaleTaxes", "Sale Taxes", "money"],
+        ["valuationNetProceeds", "Net Proceeds", "money"],
       ],
     },
   };
@@ -70,6 +73,7 @@ export function Dashboard({ model, locationMeta }) {
         "saleNetProceeds",
         "valuationEnterpriseValue",
         "valuationEquityValue",
+        "valuationNetProceeds",
         "cashChange",
         "endingCash",
       ].includes(key)
@@ -85,6 +89,14 @@ export function Dashboard({ model, locationMeta }) {
     }
     if (key === "valuationEquityValue") {
       return row.valuationEquityValue ?? getRowValue(row, "valuationEnterpriseValue") - (row.debtBalance ?? 0);
+    }
+    if (key === "valuationNetProceeds") {
+      return (
+        row.valuationNetProceeds ??
+        getRowValue(row, "valuationEquityValue") -
+          (row.valuationTransactionCosts ?? 0) -
+          (row.valuationSaleTaxes ?? 0)
+      );
     }
     return row[key] ?? 0;
   }
