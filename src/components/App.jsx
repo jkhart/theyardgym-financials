@@ -220,36 +220,42 @@ function buildLocationRecords({ assumptions, modelStartDate, schedule }) {
 }
 
 function buildLocationSetModel(locations) {
-  const rowsByMonth = new Map();
+  const dates = Array.from(
+    new Set(locations.flatMap((location) => location.outputs.monthlySummary?.map((row) => row.date) ?? [])),
+  ).sort((a, b) => parseLocalDate(a) - parseLocalDate(b));
 
-  locations.forEach((location) => {
-    location.outputs.monthlySummary?.forEach((row) => {
-      const current = rowsByMonth.get(row.date) ?? {
-        date: row.date,
-        monthLabel: row.monthLabel,
-        totalMembers: 0,
-        operatingRevenue: 0,
-        totalExpenses: 0,
-        grossOperatingProfit: 0,
-        monthlySlots: 0,
-        labor: 0,
-        rent: 0,
-      };
-
-      rowsByMonth.set(row.date, {
-        ...current,
-        totalMembers: current.totalMembers + (row.totalMembers ?? 0),
-        operatingRevenue: current.operatingRevenue + (row.operatingRevenue ?? 0),
-        totalExpenses: current.totalExpenses + (row.totalExpenses ?? 0),
-        grossOperatingProfit: current.grossOperatingProfit + (row.grossOperatingProfit ?? 0),
-        monthlySlots: current.monthlySlots + (row.monthlySlots ?? 0),
-        labor: current.labor + (row.labor ?? 0),
-        rent: current.rent + (row.rent ?? 0),
-      });
-    });
-  });
-
-  const months = Array.from(rowsByMonth.values())
+  const months = dates
+    .map((date) =>
+      locations.reduce(
+        (total, location) => {
+          const monthlySummary = location.outputs.monthlySummary ?? [];
+          const operatingMonthIndex = monthDiff(location.projectedOpenDate, date);
+          if (operatingMonthIndex < 0 || monthlySummary.length === 0) return total;
+          const row = monthlySummary[Math.min(operatingMonthIndex, monthlySummary.length - 1)];
+          return {
+            ...total,
+            totalMembers: total.totalMembers + (row.totalMembers ?? 0),
+            operatingRevenue: total.operatingRevenue + (row.operatingRevenue ?? 0),
+            totalExpenses: total.totalExpenses + (row.totalExpenses ?? 0),
+            grossOperatingProfit: total.grossOperatingProfit + (row.grossOperatingProfit ?? 0),
+            monthlySlots: total.monthlySlots + (row.monthlySlots ?? 0),
+            labor: total.labor + (row.labor ?? 0),
+            rent: total.rent + (row.rent ?? 0),
+          };
+        },
+        {
+          date,
+          monthLabel: formatMonthLabel(date),
+          totalMembers: 0,
+          operatingRevenue: 0,
+          totalExpenses: 0,
+          grossOperatingProfit: 0,
+          monthlySlots: 0,
+          labor: 0,
+          rent: 0,
+        },
+      ),
+    )
     .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
     .map((row, index) => ({
       ...row,
