@@ -3070,6 +3070,17 @@ export function App() {
     [assumptions, locationSchedule, rollupInputs.modelStartDate],
   );
   const locationSetModel = useMemo(() => buildLocationSetModel(locations), [locations]);
+  const locationFinancialModel = useMemo(() => {
+    const rollupModel = calculateRollupModel(locations, rollupInputs);
+    return {
+      ...rollupModel,
+      totalInitialInvestment: locationSetModel.totalInitialInvestment,
+      years: rollupModel.years.map((year) => ({
+        ...year,
+        year: year.calendarYear,
+      })),
+    };
+  }, [locationSetModel.totalInitialInvestment, locations, rollupInputs]);
   const activeScenarioLocations = locations;
 
   useEffect(() => {
@@ -3219,7 +3230,7 @@ export function App() {
             />
           </div>
           <div>
-            <Dashboard model={locationSetModel} locationMeta={locationSetMeta} />
+            <Dashboard model={locationFinancialModel} locationMeta={locationSetMeta} />
           </div>
         </section>
       )}

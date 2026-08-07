@@ -59,6 +59,9 @@ export function Dashboard({ model, locationMeta }) {
                 <th>Revenue</th>
                 <th>Expenses</th>
                 <th>Op Profit</th>
+                <th>Debt Service</th>
+                <th>Corp Taxes</th>
+                <th>Net Income</th>
                 <th>Margin</th>
               </tr>
             </thead>
@@ -70,6 +73,11 @@ export function Dashboard({ model, locationMeta }) {
                   <td>{money.format(m.totalExpenses)}</td>
                   <td className={m.grossOperatingProfit < 0 ? "negative" : "positive"}>
                     {money.format(m.grossOperatingProfit)}
+                  </td>
+                  <td>{money.format(m.corporateDebtService ?? 0)}</td>
+                  <td>{money.format(m.corporateTaxes ?? 0)}</td>
+                  <td className={(m.netIncome ?? m.grossOperatingProfit) < 0 ? "negative" : "positive"}>
+                    {money.format(m.netIncome ?? m.grossOperatingProfit)}
                   </td>
                   <td>{pct.format(m.operatingMargin)}</td>
                 </tr>
