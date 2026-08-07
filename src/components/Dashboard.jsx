@@ -42,24 +42,13 @@ export function Dashboard({ model, locationMeta }) {
         ["endingCash", "Ending Cash", "money"],
       ],
     },
-    balanceSheet: {
-      title: "Balance Sheet",
-      columns: [
-        ["endingCash", "Cash", "money"],
-        ["capitalAssets", "Capital Assets", "money"],
-        ["totalAssets", "Total Assets", "money"],
-        ["totalLiabilities", "Total Liabilities", "money"],
-        ["bookEquity", "Equity", "money"],
-      ],
-    },
     exitValuation: {
       title: "Exit / Valuation",
       columns: [
         ["ttmOperatingProfit", "TTM EBITDA Proxy", "money"],
-        ["valuationEnterpriseValue", "Estimated Enterprise Value", "money"],
-        ["debtBalance", "Debt", "money"],
-        ["endingCash", "Cash", "money"],
-        ["valuationEquityValue", "Estimated Equity Value", "money"],
+        ["valuationEnterpriseValue", "Business Assets (EV)", "money"],
+        ["debtBalance", "Liabilities (Debt)", "money"],
+        ["valuationEquityValue", "Estimated Sale Value", "money"],
       ],
     },
   };
@@ -84,7 +73,6 @@ export function Dashboard({ model, locationMeta }) {
         "valuationEquityValue",
         "cashChange",
         "endingCash",
-        "bookEquity",
       ].includes(key)
     ) {
       return "";
@@ -93,15 +81,11 @@ export function Dashboard({ model, locationMeta }) {
   }
 
   function getRowValue(row, key) {
-    if (key === "capitalAssets") return row.capitalAssets ?? 0;
-    if (key === "totalAssets") return row.totalAssets ?? (row.endingCash ?? 0) + (row.capitalAssets ?? 0);
-    if (key === "totalLiabilities") return row.totalLiabilities ?? row.debtBalance ?? 0;
-    if (key === "bookEquity") return getRowValue(row, "totalAssets") - getRowValue(row, "totalLiabilities");
     if (key === "valuationEnterpriseValue") {
       return row.valuationEnterpriseValue ?? Math.max(0, (row.ttmOperatingProfit ?? 0) * (model.ebitdaMultiple ?? 0));
     }
     if (key === "valuationEquityValue") {
-      return row.valuationEquityValue ?? getRowValue(row, "valuationEnterpriseValue") - (row.debtBalance ?? 0) + (row.endingCash ?? 0);
+      return row.valuationEquityValue ?? getRowValue(row, "valuationEnterpriseValue") - (row.debtBalance ?? 0);
     }
     return row[key] ?? 0;
   }
@@ -243,7 +227,7 @@ function ValuationChart({ rows, getValue }) {
         />
         {rows.map((row, index) => {
           const enterpriseValue = getValue(row, "valuationEnterpriseValue");
-          const equityValue = getValue(row, "valuationEquityValue");
+          const saleValue = getValue(row, "valuationEquityValue");
           const x = padding.left + index * (barWidth + barGap);
           const barHeight = Math.max(2, (enterpriseValue / maxValue) * chartHeight);
           const y = height - padding.bottom - barHeight;
@@ -259,7 +243,7 @@ function ValuationChart({ rows, getValue }) {
                 {formatChartValue(enterpriseValue)}
               </text>
               <text className="valuationEquityLabel" textAnchor="middle" x={x + barWidth / 2} y={Math.min(height - 50, y + 22)}>
-                {formatChartValue(equityValue)}
+                {formatChartValue(saleValue)}
               </text>
               <text className="chartYear" textAnchor="middle" x={x + barWidth / 2} y={height - 18}>
                 {row.calendarYear ?? row.year}
@@ -275,7 +259,7 @@ function ValuationChart({ rows, getValue }) {
         </span>
         <span>
           <i className="legendSwatch valuationEquitySwatch" />
-          Equity value shown inside each bar
+          Estimated sale value shown inside each bar
         </span>
       </div>
     </div>

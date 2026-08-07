@@ -528,7 +528,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
     const trailingMonths = months.slice(Math.max(0, index - 11), index + 1);
     month.ttmOperatingProfit = trailingMonths.reduce((total, row) => total + row.corporateOperatingProfit, 0);
     month.valuationEnterpriseValue = Math.max(0, month.ttmOperatingProfit * ebitdaMultiple);
-    month.valuationEquityValue = month.valuationEnterpriseValue - month.debtBalance + month.endingCash;
+    month.valuationEquityValue = month.valuationEnterpriseValue - month.debtBalance;
     if (!saleDate || toMonthKey(month.date) !== toMonthKey(saleDate)) return;
     month.saleEnterpriseValue = month.valuationEnterpriseValue;
     month.saleDebtPayoff = month.debtBalance;
@@ -560,7 +560,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
     const endingCash = end?.endingCash ?? startingCash;
     const debtBalance = end?.debtBalance ?? 0;
     const enterpriseValue = end?.valuationEnterpriseValue ?? 0;
-    const equityValue = end?.valuationEquityValue ?? enterpriseValue - debtBalance + endingCash;
+    const equityValue = end?.valuationEquityValue ?? enterpriseValue - debtBalance;
     return {
       calendarYear,
       preOpenInvestment: sum("preOpenInvestment"),
@@ -1079,7 +1079,7 @@ const ROLLUP_CHART_METRICS = {
     label: "Equity Value",
     title: "Annual Equity Value",
     valueKey: "equityValue",
-    ariaLabel: "Annual equity value based on EBITDA proxy multiple minus debt plus cash",
+    ariaLabel: "Annual equity value based on EBITDA proxy multiple minus debt",
   },
   saleProceeds: {
     label: "Sale Proceeds",
