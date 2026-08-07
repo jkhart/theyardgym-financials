@@ -198,11 +198,13 @@ function loadSharedAssumptions() {
   }
 }
 
-function buildLocationRecords({ assumptions, modelStartDate, schedule }) {
+function buildLocationRecords({ assumptions, modelEndDate, modelStartDate, schedule }) {
   return schedule.map((location) => {
+    const operatingMonths = modelEndDate ? monthDiff(location.projectedOpenDate, modelEndDate) + 1 : 36;
     const model = calculateModel(assumptions, {
       projectedOpenDate: location.projectedOpenDate,
       modelStartDate,
+      operatingMonths,
     });
 
     return {
@@ -2869,10 +2871,11 @@ export function App() {
     () =>
       buildLocationRecords({
         assumptions,
+        modelEndDate: rollupInputs.saleDate,
         modelStartDate: rollupInputs.modelStartDate,
         schedule: locationSchedule,
       }),
-    [assumptions, locationSchedule, rollupInputs.modelStartDate],
+    [assumptions, locationSchedule, rollupInputs.modelStartDate, rollupInputs.saleDate],
   );
   const locationSetModel = useMemo(() => buildLocationSetModel(locations), [locations]);
   const locationFinancialModel = useMemo(() => {
