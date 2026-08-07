@@ -1,42 +1,18 @@
 import { BarChart3, Calculator } from "lucide-react";
 import { formatValue, money, pct } from "../lib/formatting.js";
-import { TINKER_ASSUMPTION_FIELDS } from "../lib/model/fields.js";
-import { AssumptionInput } from "./AssumptionsPanel.jsx";
 
-export function Dashboard({ model, locationMeta, assumptions, updateAssumption }) {
+export function Dashboard({ model, locationMeta }) {
   const firstThreeYears = model.years.slice(0, 3);
 
   return (
     <section className="dashboard">
-      <section className="tinkerPanel">
-        <div className="panelTitle">
-          <Calculator size={18} />
-          <div>
-            <h2>Tinker Assumptions</h2>
-            <p>Shared across all four locations; edit here while reading the statements below.</p>
-          </div>
-        </div>
-        <div className="tinkerGrid">
-          {TINKER_ASSUMPTION_FIELDS.map(([id, label, type]) => (
-            <AssumptionInput
-              key={id}
-              id={id}
-              label={label}
-              type={type}
-              value={assumptions[id]}
-              onChange={updateAssumption}
-            />
-          ))}
-        </div>
-      </section>
-
       <div className="annualPanel">
         <div className="panelTitle">
           <BarChart3 size={18} />
           <div>
             <h2>{locationMeta.locationName}</h2>
             <p>
-              Three-Year Income Statement Summary · Opens {locationMeta.projectedOpenDate}
+              {locationMeta.scenarioName} · Opens {locationMeta.projectedOpenDate}
             </p>
           </div>
         </div>
@@ -73,7 +49,7 @@ export function Dashboard({ model, locationMeta, assumptions, updateAssumption }
       <div className="tablePanel">
         <div className="panelTitle">
           <Calculator size={18} />
-          <h2>Monthly Operating Statement</h2>
+          <h2>Monthly Model</h2>
         </div>
         <div className="tableWrap">
           <table>
