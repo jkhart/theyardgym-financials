@@ -43,7 +43,7 @@ export function Dashboard({ model, locationMeta }) {
       ],
     },
     exitValuation: {
-      title: "Exit / Valuation",
+      title: "Valuation",
       columns: [
         ["ttmOperatingProfit", "TTM Operating Profit", "money"],
         ["valuationEnterpriseValue", "Enterprise Value", "money"],
