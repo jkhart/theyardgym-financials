@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, Dumbbell, RotateCcw } from "lucide-react";
+import { ChevronDown, Download, Dumbbell, RotateCcw } from "lucide-react";
 import { Dashboard } from "./Dashboard.jsx";
 import { AssumptionsPanel } from "./AssumptionsPanel.jsx";
 import { money, num, pct } from "../lib/formatting.js";
@@ -1003,6 +1003,101 @@ function PercentInput({ value, onChange }) {
   }
 
   return <input type="number" step="0.1" value={draft} onChange={(event) => updateDraft(event.target.value)} />;
+}
+
+function CorporateInputsPanel({ assumptions, inputs, updateAssumption, updateInput, openGroup, setOpenGroup }) {
+  const toggleGroup = (group) => setOpenGroup(openGroup === group ? "" : group);
+
+  return (
+    <aside className="assumptions rollupInputs">
+      <div className="panelTitle">
+        <h2>Corporate</h2>
+      </div>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Policy")} type="button">
+          Policy
+          <ChevronDown size={16} className={openGroup === "Policy" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Policy" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>Minimum cash reserves</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.minimumWorkingCapital}
+                onChange={(event) => updateInput("minimumWorkingCapital", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Owner salary / location</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.annualOwnerSalary}
+                onChange={(event) => updateInput("annualOwnerSalary", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Owner salary inflation</span>
+              <PercentInput
+                value={inputs.ownerSalaryInflation}
+                onChange={(value) => updateInput("ownerSalaryInflation", value)}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Loan rate</span>
+              <PercentInput value={assumptions.loanRate} onChange={(value) => updateAssumption("loanRate", value)} />
+            </label>
+          </div>
+        )}
+      </section>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Valuation")} type="button">
+          Valuation
+          <ChevronDown size={16} className={openGroup === "Valuation" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Valuation" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>Sale type</span>
+              <select value={inputs.saleType ?? "stock"} onChange={(event) => updateInput("saleType", event.target.value)}>
+                <option value="stock">Stock sale</option>
+                <option value="asset">Asset sale</option>
+              </select>
+            </label>
+            <label className="inputRow">
+              <span>Sale date</span>
+              <input type="date" value={inputs.saleDate} onChange={(event) => updateInput("saleDate", event.target.value)} />
+            </label>
+            <label className="inputRow">
+              <span>EBITDA multiple</span>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={inputs.ebitdaMultiple}
+                onChange={(event) => updateInput("ebitdaMultiple", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Transaction cost</span>
+              <PercentInput value={inputs.transactionCostRate} onChange={(value) => updateInput("transactionCostRate", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Tax basis</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.assetTaxBasis}
+                onChange={(event) => updateInput("assetTaxBasis", Number(event.target.value))}
+              />
+            </label>
+          </div>
+        )}
+      </section>
+    </aside>
+  );
 }
 
 function RollupInputsPanel({ assumptions, inputs, updateAssumption, updateInput }) {
@@ -2856,6 +2951,7 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
 export function App() {
   const [assumptions, setAssumptions] = useState(loadSharedAssumptions);
   const [openGroup, setOpenGroup] = useState("Portfolio Locations");
+  const [openCorporateGroup, setOpenCorporateGroup] = useState("Policy");
   const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
   const [activeView, setActiveView] = useState("location");
   const [activeWealthView, setActiveWealthView] = useState("overview");
@@ -3011,13 +3107,14 @@ export function App() {
               updateAssumption={updateAssumption}
               onUpdateOpenDate={updateLocationOpenDate}
             />
-            <RollupInputsPanel
+            <CorporateInputsPanel
               assumptions={assumptions}
               inputs={rollupInputs}
               updateAssumption={updateAssumption}
               updateInput={updateRollupInput}
+              openGroup={openCorporateGroup}
+              setOpenGroup={setOpenCorporateGroup}
             />
-            <ExitInputsPanel inputs={rollupInputs} updateInput={updateRollupInput} />
           </div>
           <div>
             <Dashboard model={locationFinancialModel} locationMeta={locationSetMeta} />
