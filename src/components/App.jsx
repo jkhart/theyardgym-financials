@@ -34,6 +34,9 @@ const DEFAULT_ROLLUP_INPUTS = {
   transactionCostRate: 0.03,
   assetTaxBasis: 0,
   rothBirthDate: "1984-01-01",
+  downsideReturn: 0.06,
+  baseReturn: 0.1,
+  upsideReturn: 0.12,
   rothDownsideReturn: 0.06,
   rothAnnualReturn: 0.1,
   rothUpsideReturn: 0.12,
@@ -63,6 +66,15 @@ const FIXED_ROLLUP_INPUTS = {
 
 function normalizeRollupInputs(inputs) {
   const normalized = { ...DEFAULT_ROLLUP_INPUTS, ...inputs, ...FIXED_ROLLUP_INPUTS };
+  normalized.downsideReturn = Number(normalized.downsideReturn ?? normalized.rothDownsideReturn ?? normalized.personalDownsideReturn) || 0;
+  normalized.baseReturn = Number(normalized.baseReturn ?? normalized.rothAnnualReturn ?? normalized.personalAnnualReturn) || 0;
+  normalized.upsideReturn = Number(normalized.upsideReturn ?? normalized.rothUpsideReturn ?? normalized.personalUpsideReturn) || 0;
+  normalized.rothDownsideReturn = normalized.downsideReturn;
+  normalized.rothAnnualReturn = normalized.baseReturn;
+  normalized.rothUpsideReturn = normalized.upsideReturn;
+  normalized.personalDownsideReturn = normalized.downsideReturn;
+  normalized.personalAnnualReturn = normalized.baseReturn;
+  normalized.personalUpsideReturn = normalized.upsideReturn;
   normalized.minimumWorkingCapital = Number(normalized.minimumWorkingCapital) || 0;
   normalized.distributionCashFloor = normalized.minimumWorkingCapital;
   return normalized;
@@ -654,9 +666,9 @@ function calculateRothModel(rollupModel, inputs, options = {}) {
   const distributionStartDate = rollupModel.distributionStartDate;
   const rollupByMonth = new Map(rollupModel.months.map((month) => [toMonthKey(month.date), month]));
   const scenarioInputs = [
-    { key: "downside", label: "Downside", annualReturn: Number(inputs.rothDownsideReturn) || 0 },
-    { key: "base", label: "Base", annualReturn: Number(inputs.rothAnnualReturn) || 0 },
-    { key: "upside", label: "Upside", annualReturn: Number(inputs.rothUpsideReturn) || 0 },
+    { key: "downside", label: "Downside", annualReturn: Number(inputs.downsideReturn) || 0 },
+    { key: "base", label: "Base", annualReturn: Number(inputs.baseReturn) || 0 },
+    { key: "upside", label: "Upside", annualReturn: Number(inputs.upsideReturn) || 0 },
   ];
 
   const projectScenario = (scenario) => {
@@ -745,9 +757,9 @@ function calculateRothIraModel(inputs) {
   const horizonMonths = Math.max(1, monthDiff(inputs.modelStartDate, endDate) + 1);
   const startingBalance = Number(inputs.rothIraStartingBalance) || 0;
   const scenarioInputs = [
-    { key: "downside", label: "Downside", annualReturn: Number(inputs.rothDownsideReturn) || 0 },
-    { key: "base", label: "Base", annualReturn: Number(inputs.rothAnnualReturn) || 0 },
-    { key: "upside", label: "Upside", annualReturn: Number(inputs.rothUpsideReturn) || 0 },
+    { key: "downside", label: "Downside", annualReturn: Number(inputs.downsideReturn) || 0 },
+    { key: "base", label: "Base", annualReturn: Number(inputs.baseReturn) || 0 },
+    { key: "upside", label: "Upside", annualReturn: Number(inputs.upsideReturn) || 0 },
   ];
 
   const projectScenario = (scenario) => {
@@ -837,9 +849,9 @@ function calculatePersonalModel(businessModel, inputs) {
     (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0);
   const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
   const scenarioInputs = [
-    { key: "downside", label: "Downside", annualReturn: Number(inputs.personalDownsideReturn) || 0 },
-    { key: "base", label: "Base", annualReturn: Number(inputs.personalAnnualReturn) || 0 },
-    { key: "upside", label: "Upside", annualReturn: Number(inputs.personalUpsideReturn) || 0 },
+    { key: "downside", label: "Downside", annualReturn: Number(inputs.downsideReturn) || 0 },
+    { key: "base", label: "Base", annualReturn: Number(inputs.baseReturn) || 0 },
+    { key: "upside", label: "Upside", annualReturn: Number(inputs.upsideReturn) || 0 },
   ];
 
   const projectScenario = (scenario) => {
@@ -1196,21 +1208,6 @@ function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGrou
                 onChange={(value) => updateInput("personalStockAppreciation", value)}
               />
             </label>
-            <label className="inputRow">
-              <span>Downside return</span>
-              <PercentInput
-                value={inputs.personalDownsideReturn}
-                onChange={(value) => updateInput("personalDownsideReturn", value)}
-              />
-            </label>
-            <label className="inputRow">
-              <span>Base return</span>
-              <PercentInput value={inputs.personalAnnualReturn} onChange={(value) => updateInput("personalAnnualReturn", value)} />
-            </label>
-            <label className="inputRow">
-              <span>Upside return</span>
-              <PercentInput value={inputs.personalUpsideReturn} onChange={(value) => updateInput("personalUpsideReturn", value)} />
-            </label>
           </div>
         )}
       </section>
@@ -1225,18 +1222,6 @@ function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGrou
               <span>ROBS conversion tax</span>
               <PercentInput value={inputs.robsConversionTaxRate} onChange={(value) => updateInput("robsConversionTaxRate", value)} />
             </label>
-            <label className="inputRow">
-              <span>Downside return</span>
-              <PercentInput value={inputs.rothDownsideReturn} onChange={(value) => updateInput("rothDownsideReturn", value)} />
-            </label>
-            <label className="inputRow">
-              <span>Base return</span>
-              <PercentInput value={inputs.rothAnnualReturn} onChange={(value) => updateInput("rothAnnualReturn", value)} />
-            </label>
-            <label className="inputRow">
-              <span>Upside return</span>
-              <PercentInput value={inputs.rothUpsideReturn} onChange={(value) => updateInput("rothUpsideReturn", value)} />
-            </label>
           </div>
         )}
       </section>
@@ -1247,6 +1232,18 @@ function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGrou
         </button>
         {openGroup === "Planning" && (
           <div className="groupFields">
+            <label className="inputRow">
+              <span>Downside return</span>
+              <PercentInput value={inputs.downsideReturn} onChange={(value) => updateInput("downsideReturn", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Base return</span>
+              <PercentInput value={inputs.baseReturn} onChange={(value) => updateInput("baseReturn", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Upside return</span>
+              <PercentInput value={inputs.upsideReturn} onChange={(value) => updateInput("upsideReturn", value)} />
+            </label>
             <label className="inputRow">
               <span>Safe withdrawal rate</span>
               <PercentInput value={inputs.safeWithdrawalRate} onChange={(value) => updateInput("safeWithdrawalRate", value)} />
@@ -1768,18 +1765,9 @@ function RothInputsPanel({ inputs, updateInput }) {
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
-          <label className="inputRow">
-            <span>Downside return</span>
-            <PercentInput value={inputs.rothDownsideReturn} onChange={(value) => updateInput("rothDownsideReturn", value)} />
-          </label>
-          <label className="inputRow">
-            <span>Base return</span>
-            <PercentInput value={inputs.rothAnnualReturn} onChange={(value) => updateInput("rothAnnualReturn", value)} />
-          </label>
-          <label className="inputRow">
-            <span>Upside return</span>
-            <PercentInput value={inputs.rothUpsideReturn} onChange={(value) => updateInput("rothUpsideReturn", value)} />
-          </label>
+          <p className="emptyState">
+            Return scenarios are shared across accounts from Personal Wealth &gt; Planning.
+          </p>
         </div>
       </section>
     </aside>
@@ -1907,20 +1895,9 @@ function RothIraInputsPanel({ inputs, updateInput, rothIraModel }) {
               onChange={(event) => updateInput("rothIraStartingBalance", Number(event.target.value))}
             />
           </label>
-          <label className="inputRow">
-            <span>Downside return</span>
-            <PercentInput value={inputs.rothDownsideReturn} onChange={(value) => updateInput("rothDownsideReturn", value)} />
-          </label>
-          <label className="inputRow">
-            <span>Base return</span>
-            <PercentInput value={inputs.rothAnnualReturn} onChange={(value) => updateInput("rothAnnualReturn", value)} />
-          </label>
-          <label className="inputRow">
-            <span>Upside return</span>
-            <PercentInput value={inputs.rothUpsideReturn} onChange={(value) => updateInput("rothUpsideReturn", value)} />
-          </label>
           <p className="emptyState">
             This is your separate existing Roth IRA. It stays outside the ROBS structure and compounds to age 60.
+            Return scenarios are shared from Personal Wealth &gt; Planning.
           </p>
         </div>
       </section>
@@ -2210,23 +2187,9 @@ function PersonalInputsPanel({ inputs, updateInput, personalModel }) {
               onChange={(value) => updateInput("personalStockAppreciation", value)}
             />
           </label>
-          <label className="inputRow">
-            <span>Downside return</span>
-            <PercentInput
-              value={inputs.personalDownsideReturn}
-              onChange={(value) => updateInput("personalDownsideReturn", value)}
-            />
-          </label>
-          <label className="inputRow">
-            <span>Base return</span>
-            <PercentInput value={inputs.personalAnnualReturn} onChange={(value) => updateInput("personalAnnualReturn", value)} />
-          </label>
-          <label className="inputRow">
-            <span>Upside return</span>
-            <PercentInput value={inputs.personalUpsideReturn} onChange={(value) => updateInput("personalUpsideReturn", value)} />
-          </label>
           <p className="emptyState">
-            VOO is modeled as invested capital. Cash is modeled separately in the Cash tab.
+            VOO is modeled as invested capital. Cash is modeled separately in the Cash tab. Return scenarios are shared
+            from Personal Wealth &gt; Planning.
           </p>
         </div>
       </section>
