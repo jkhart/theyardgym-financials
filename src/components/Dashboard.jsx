@@ -45,15 +45,14 @@ export function Dashboard({ model, locationMeta }) {
     exitValuation: {
       title: "Exit / Valuation",
       columns: [
-        ["ttmOperatingProfit", "TTM EBITDA Proxy", "money"],
-        ["valuationEnterpriseValue", "Business Assets (EV)", "money"],
-        ["debtBalance", "Liabilities (Debt)", "money"],
+        ["ttmOperatingProfit", "TTM Operating Profit", "money"],
+        ["valuationEnterpriseValue", "Enterprise Value", "money"],
+        ["debtBalance", "Debt", "money"],
         ["valuationEquityValue", "Estimated Sale Value", "money"],
       ],
     },
   };
   const activeConfig = statements[activeStatement];
-  const isExitValuation = activeStatement === "exitValuation";
 
   function formatCell(row, key, type) {
     const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : getRowValue(row, key);
@@ -143,7 +142,6 @@ export function Dashboard({ model, locationMeta }) {
             ))}
           </div>
         </div>
-        {isExitValuation && <ValuationChart rows={model.years} getValue={getRowValue} />}
         <div className="tableWrap">
           <table>
             <thead>
@@ -187,81 +185,5 @@ export function Dashboard({ model, locationMeta }) {
         </div>
       </div>
     </section>
-  );
-}
-
-function ValuationChart({ rows, getValue }) {
-  const values = rows.map((row) => getValue(row, "valuationEnterpriseValue"));
-  const maxValue = Math.max(1, ...values);
-  const compact = rows.length > 8;
-  const width = Math.max(760, rows.length * (compact ? 104 : 128));
-  const height = 270;
-  const padding = { top: 34, right: 30, bottom: 46, left: 30 };
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
-  const barGap = compact ? 18 : 22;
-  const barWidth = Math.max(46, (chartWidth - barGap * (rows.length - 1)) / Math.max(rows.length, 1));
-
-  const formatChartValue = (value) => {
-    const absValue = Math.abs(value);
-    const sign = value < 0 ? "-" : "";
-    if (absValue >= 1000000) return `${sign}$${(absValue / 1000000).toFixed(1)}M`;
-    if (absValue >= 1000) return `${sign}$${Math.round(absValue / 1000)}K`;
-    return money.format(value);
-  };
-
-  return (
-    <div className="profitChartWrap valuationChartWrap">
-      <svg
-        aria-label="Estimated enterprise value by year"
-        className="profitChart"
-        role="img"
-        viewBox={`0 0 ${width} ${height}`}
-      >
-        <line
-          className="chartZeroLine"
-          x1={padding.left}
-          x2={width - padding.right}
-          y1={height - padding.bottom}
-          y2={height - padding.bottom}
-        />
-        {rows.map((row, index) => {
-          const enterpriseValue = getValue(row, "valuationEnterpriseValue");
-          const saleValue = getValue(row, "valuationEquityValue");
-          const x = padding.left + index * (barWidth + barGap);
-          const barHeight = Math.max(2, (enterpriseValue / maxValue) * chartHeight);
-          const y = height - padding.bottom - barHeight;
-          return (
-            <g key={row.calendarYear ?? row.year}>
-              <rect className="chartBar positiveBar" height={barHeight} rx="4" width={barWidth} x={x} y={y} />
-              <text
-                className={compact ? "chartValue compactChartValue" : "chartValue"}
-                textAnchor="middle"
-                x={x + barWidth / 2}
-                y={Math.max(16, y - 8)}
-              >
-                {formatChartValue(enterpriseValue)}
-              </text>
-              <text className="valuationEquityLabel" textAnchor="middle" x={x + barWidth / 2} y={Math.min(height - 50, y + 22)}>
-                {formatChartValue(saleValue)}
-              </text>
-              <text className="chartYear" textAnchor="middle" x={x + barWidth / 2} y={height - 18}>
-                {row.calendarYear ?? row.year}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="chartLegend">
-        <span>
-          <i className="legendSwatch valuationEnterpriseSwatch" />
-          Enterprise value
-        </span>
-        <span>
-          <i className="legendSwatch valuationEquitySwatch" />
-          Estimated sale value shown inside each bar
-        </span>
-      </div>
-    </div>
   );
 }
