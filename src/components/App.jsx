@@ -989,7 +989,7 @@ function RollupInputsPanel({ inputs, updateInput }) {
       <section className="assumptionGroup">
         <div className="groupFields">
           <label className="inputRow">
-            <span>C-Corp cash reserve</span>
+            <span>Minimum cash reserves</span>
             <input
               type="number"
               step="1000"
@@ -998,7 +998,7 @@ function RollupInputsPanel({ inputs, updateInput }) {
             />
           </label>
           <label className="inputRow">
-            <span>Starting owner salary / location</span>
+            <span>Owner salary / location</span>
             <input
               type="number"
               step="1000"
@@ -1230,7 +1230,7 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
           <article>
             <span>Starting Cash</span>
             <strong>{money.format(rollupModel.startingCash)}</strong>
-            <small>{money.format(rollupModel.minimumWorkingCapital)} C-Corp cash reserve</small>
+            <small>{money.format(rollupModel.minimumWorkingCapital)} minimum cash reserves</small>
           </article>
           <article>
             <span>Total Investment</span>
