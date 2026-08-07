@@ -1,7 +1,7 @@
 import { ChevronDown, Settings2 } from "lucide-react";
 import { ASSUMPTION_GROUPS } from "../lib/model/fields.js";
 
-function AssumptionInput({ id, label, type, value, onChange }) {
+export function AssumptionInput({ id, label, type, value, onChange }) {
   const step = type === "percent" || type === "decimal" ? 0.01 : 1;
   const displayValue = type === "percent" ? +(value * 100).toFixed(3) : value;
   return (
@@ -25,7 +25,7 @@ export function AssumptionsPanel({ assumptions, openGroup, setOpenGroup, updateA
     <aside className="assumptions">
       <div className="panelTitle">
         <Settings2 size={18} />
-        <h2>Assumptions</h2>
+        <h2>Shared Location Assumptions</h2>
       </div>
       {ASSUMPTION_GROUPS.map((group) => (
         <section className="assumptionGroup" key={group.title}>
@@ -41,6 +41,7 @@ export function AssumptionsPanel({ assumptions, openGroup, setOpenGroup, updateA
           </button>
           {openGroup === group.title && (
             <div className="groupFields">
+              {group.description && <p className="groupDescription">{group.description}</p>}
               {group.fields.map(([id, label, type]) => (
                 <AssumptionInput
                   key={id}

@@ -2987,7 +2987,7 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
 
 export function App() {
   const [assumptions, setAssumptions] = useState(loadSharedAssumptions);
-  const [openGroup, setOpenGroup] = useState("Membership / Revenue");
+  const [openGroup, setOpenGroup] = useState("Tinker / Scenario Drivers");
   const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
   const [activeLocationId, setActiveLocationId] = useState(DEFAULT_LOCATION_META.id);
   const [locationMeta, setLocationMeta] = useState(DEFAULT_LOCATION_META);
@@ -3182,7 +3182,12 @@ export function App() {
             />
           </div>
           <div>
-            <Dashboard model={model} locationMeta={locationMeta} />
+            <Dashboard
+              model={model}
+              locationMeta={locationMeta}
+              assumptions={assumptions}
+              updateAssumption={updateAssumption}
+            />
           </div>
         </section>
       )}

@@ -427,6 +427,13 @@ footer {
   border-top: 1px solid #ebe5da;
 }
 
+.groupDescription {
+  margin: 0 0 2px;
+  color: #687076;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
 .inputRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 88px;
@@ -469,7 +476,8 @@ footer {
 .annualPanel,
 .tablePanel,
 .locationSnapshot,
-.portfolioPanel {
+.portfolioPanel,
+.tinkerPanel {
   min-width: 0;
   border: 1px solid #d8d2c8;
   border-radius: 8px;
@@ -479,6 +487,25 @@ footer {
 
 .portfolioPanel {
   margin: 0;
+}
+
+.tinkerPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.tinkerGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 8px 12px;
+}
+
+.tinkerGrid .inputRow {
+  grid-template-columns: minmax(0, 1fr) 84px;
+  padding: 6px 8px;
+  border: 1px solid #eee8df;
+  border-radius: 7px;
+  background: #faf7ef;
 }
 
 .locationSnapshot {
@@ -1073,7 +1100,8 @@ footer {
   .annualGrid,
   .preOpenGrid,
   .locationKpis,
-  .portfolioGrid {
+  .portfolioGrid,
+  .tinkerGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
