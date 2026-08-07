@@ -20,13 +20,59 @@ function AssumptionInput({ id, label, type, value, onChange }) {
   );
 }
 
-export function AssumptionsPanel({ assumptions, openGroup, setOpenGroup, updateAssumption }) {
+function LocationDateInput({ location, onFocus, onChange }) {
+  return (
+    <label className="inputRow">
+      <span>{location.locationName}</span>
+      <input
+        type="date"
+        value={location.projectedOpenDate}
+        onFocus={() => onFocus(location)}
+        onChange={(event) => onChange(location.id, event.target.value)}
+      />
+    </label>
+  );
+}
+
+export function AssumptionsPanel({
+  assumptions,
+  locations = [],
+  openGroup,
+  setOpenGroup,
+  updateAssumption,
+  onSelectLocation,
+  onUpdateOpenDate,
+}) {
   return (
     <aside className="assumptions">
       <div className="panelTitle">
         <Settings2 size={18} />
         <h2>Assumptions</h2>
       </div>
+      <section className="assumptionGroup">
+        <button
+          className="groupToggle"
+          onClick={() => setOpenGroup(openGroup === "Portfolio Locations" ? "" : "Portfolio Locations")}
+        >
+          Portfolio Locations
+          <ChevronDown
+            size={16}
+            className={openGroup === "Portfolio Locations" ? "chevron open" : "chevron"}
+          />
+        </button>
+        {openGroup === "Portfolio Locations" && (
+          <div className="groupFields">
+            {locations.map((location) => (
+              <LocationDateInput
+                key={location.id}
+                location={location}
+                onFocus={onSelectLocation}
+                onChange={onUpdateOpenDate}
+              />
+            ))}
+          </div>
+        )}
+      </section>
       {ASSUMPTION_GROUPS.map((group) => (
         <section className="assumptionGroup" key={group.title}>
           <button

@@ -241,119 +241,11 @@ footer {
   margin-bottom: 8px;
 }
 
-.locationPanel {
-  border: 1px solid #d8d2c8;
-  border-radius: 8px;
-  padding: 10px;
-  background: #fffdf8;
-}
-
-.locationPanel .panelHeader button,
-.iconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.locationFields {
-  display: grid;
-  gap: 7px;
-  margin-top: 10px;
-}
-
-.locationFields input,
-.locationFields select {
-  min-width: 0;
-  min-height: 30px;
-  border: 1px solid #d7d0c4;
-  border-radius: 6px;
-  padding: 5px 8px;
-  background: #fff9e8;
-}
-
-.locationFields button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-}
-
-.compactField {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 136px;
-  align-items: center;
-  gap: 8px;
-  color: #41484e;
-  font-size: 0.75rem;
-}
-
-.compactField input {
-  width: 100%;
-  text-align: right;
-}
-
-.locationList {
-  display: grid;
-  gap: 7px;
-  margin-top: 10px;
-}
-
 .emptyState {
   margin: 0;
   padding: 8px;
   color: #687076;
   font-size: 0.78rem;
-}
-
-.locationItem {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  border: 1px solid #eee8df;
-  border-radius: 7px;
-  padding: 8px;
-  background: #faf7ef;
-}
-
-.locationItem.active {
-  border-color: #1d6f67;
-  background: #edf7f4;
-}
-
-.locationItem.inactive {
-  background: #f4f1ea;
-  opacity: 0.68;
-}
-
-.locationDateField {
-  grid-template-columns: minmax(0, 1fr) 130px;
-}
-
-.locationLoad {
-  display: grid;
-  gap: 2px;
-  min-height: 0;
-  border: 0;
-  padding: 5px 6px;
-  background: transparent;
-  text-align: left;
-}
-
-.locationLoad strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.78rem;
-}
-
-.locationLoad span {
-  overflow: hidden;
-  color: #687076;
-  font-size: 0.69rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .rollupLocationRow {
@@ -379,17 +271,6 @@ footer {
 .rollupLocationRow span {
   color: #687076;
   font-size: 0.7rem;
-}
-
-.iconButton {
-  width: 30px;
-  min-height: 30px;
-  padding: 0;
-}
-
-.locationStatusButton.active {
-  color: #1d6f67;
-  background: #e3f2ee;
 }
 
 .assumptionGroup {

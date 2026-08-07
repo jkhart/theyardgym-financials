@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Download, Dumbbell, RotateCcw } from "lucide-react";
 import { Dashboard } from "./Dashboard.jsx";
 import { AssumptionsPanel } from "./AssumptionsPanel.jsx";
-import { LocationManager } from "./LocationManager.jsx";
 import { getPortfolioSummary } from "./PortfolioSummary.jsx";
 import { money, num, pct } from "../lib/formatting.js";
 import { calculateModel } from "../lib/model/calculateModel.js";
@@ -2987,7 +2986,7 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
 
 export function App() {
   const [assumptions, setAssumptions] = useState(loadSharedAssumptions);
-  const [openGroup, setOpenGroup] = useState("Membership / Revenue");
+  const [openGroup, setOpenGroup] = useState("Portfolio Locations");
   const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
   const [activeLocationId, setActiveLocationId] = useState(DEFAULT_LOCATION_META.id);
   const [locationMeta, setLocationMeta] = useState(DEFAULT_LOCATION_META);
@@ -3168,17 +3167,14 @@ export function App() {
       ) : (
         <section className="workspace">
           <div className="leftRail">
-            <LocationManager
-              activeLocationId={activeLocationId}
-              locations={locations}
-              onLoad={loadLocation}
-              onUpdateOpenDate={updateLocationOpenDate}
-            />
             <AssumptionsPanel
               assumptions={assumptions}
+              locations={locations}
               openGroup={openGroup}
               setOpenGroup={setOpenGroup}
               updateAssumption={updateAssumption}
+              onSelectLocation={loadLocation}
+              onUpdateOpenDate={updateLocationOpenDate}
             />
           </div>
           <div>
