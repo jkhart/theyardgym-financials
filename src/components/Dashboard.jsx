@@ -1,8 +1,40 @@
+import { Fragment, useState } from "react";
 import { BarChart3, Calculator } from "lucide-react";
 import { formatValue, money, pct } from "../lib/formatting.js";
 
 export function Dashboard({ model, locationMeta }) {
   const firstThreeYears = model.years.slice(0, 3);
+  const [expandedYear, setExpandedYear] = useState(null);
+
+  const monthsByYear = model.months.reduce((groups, month) => {
+    const year = Number(String(month.date).slice(0, 4));
+    const yearMonths = groups.get(year) ?? [];
+    yearMonths.push(month);
+    groups.set(year, yearMonths);
+    return groups;
+  }, new Map());
+
+  function toggleYear(year) {
+    setExpandedYear((current) => (current === year ? null : year));
+  }
+
+  function renderFinancialCells(row) {
+    return (
+      <>
+        <td>{money.format(row.operatingRevenue)}</td>
+        <td>{money.format(row.totalExpenses)}</td>
+        <td className={row.grossOperatingProfit < 0 ? "negative" : "positive"}>
+          {money.format(row.grossOperatingProfit)}
+        </td>
+        <td>{money.format(row.corporateDebtService ?? 0)}</td>
+        <td>{money.format(row.corporateTaxes ?? 0)}</td>
+        <td className={(row.netIncome ?? row.grossOperatingProfit) < 0 ? "negative" : "positive"}>
+          {money.format(row.netIncome ?? row.grossOperatingProfit)}
+        </td>
+        <td>{pct.format(row.operatingMargin)}</td>
+      </>
+    );
+  }
 
   return (
     <section className="dashboard">
@@ -66,22 +98,33 @@ export function Dashboard({ model, locationMeta }) {
               </tr>
             </thead>
             <tbody>
-              {model.years.map((m) => (
-                <tr key={m.year}>
-                  <td>{m.year}</td>
-                  <td>{money.format(m.operatingRevenue)}</td>
-                  <td>{money.format(m.totalExpenses)}</td>
-                  <td className={m.grossOperatingProfit < 0 ? "negative" : "positive"}>
-                    {money.format(m.grossOperatingProfit)}
-                  </td>
-                  <td>{money.format(m.corporateDebtService ?? 0)}</td>
-                  <td>{money.format(m.corporateTaxes ?? 0)}</td>
-                  <td className={(m.netIncome ?? m.grossOperatingProfit) < 0 ? "negative" : "positive"}>
-                    {money.format(m.netIncome ?? m.grossOperatingProfit)}
-                  </td>
-                  <td>{pct.format(m.operatingMargin)}</td>
-                </tr>
-              ))}
+              {model.years.map((m) => {
+                const isExpanded = expandedYear === m.year;
+                return (
+                  <Fragment key={m.year}>
+                    <tr
+                      aria-expanded={isExpanded}
+                      className="expandableYearRow"
+                      onClick={() => toggleYear(m.year)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") toggleYear(m.year);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <td>{isExpanded ? "-" : "+"} {m.year}</td>
+                      {renderFinancialCells(m)}
+                    </tr>
+                    {isExpanded &&
+                      (monthsByYear.get(m.year) ?? []).map((month) => (
+                        <tr className="expandedMonthRow" key={`${m.year}-${month.month}`}>
+                          <td>{month.monthLabel}</td>
+                          {renderFinancialCells(month)}
+                        </tr>
+                      ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

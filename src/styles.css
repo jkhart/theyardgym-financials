@@ -923,6 +923,40 @@ tbody tr:nth-child(even) {
   background: #faf7ef;
 }
 
+.expandableYearRow {
+  cursor: pointer;
+}
+
+.expandableYearRow:hover,
+.expandableYearRow:focus {
+  background: #f1eadf;
+  outline: none;
+}
+
+.expandableYearRow:hover td:nth-child(1),
+.expandableYearRow:hover td:nth-child(2),
+.expandableYearRow:focus td:nth-child(1),
+.expandableYearRow:focus td:nth-child(2) {
+  background: #f1eadf;
+}
+
+.expandedMonthRow {
+  color: #566067;
+}
+
+.expandedMonthRow td {
+  background: #fffaf0;
+}
+
+.expandedMonthRow td:first-child {
+  padding-left: 24px;
+}
+
+.expandedMonthRow td:nth-child(1),
+.expandedMonthRow td:nth-child(2) {
+  background: #fffaf0;
+}
+
 .positive {
   color: #147060;
   font-weight: 800;
