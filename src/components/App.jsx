@@ -980,7 +980,7 @@ function PercentInput({ value, onChange }) {
   return <input type="number" step="0.1" value={draft} onChange={(event) => updateDraft(event.target.value)} />;
 }
 
-function RollupInputsPanel({ inputs, updateInput }) {
+function RollupInputsPanel({ assumptions, inputs, updateAssumption, updateInput }) {
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
@@ -1012,6 +1012,19 @@ function RollupInputsPanel({ inputs, updateInput }) {
               value={inputs.ownerSalaryInflation}
               onChange={(value) => updateInput("ownerSalaryInflation", value)}
             />
+          </label>
+          <label className="inputRow">
+            <span>Loan term</span>
+            <input
+              type="number"
+              step="1"
+              value={assumptions.loanTermYears}
+              onChange={(event) => updateAssumption("loanTermYears", Number(event.target.value))}
+            />
+          </label>
+          <label className="inputRow">
+            <span>Loan rate</span>
+            <PercentInput value={assumptions.loanRate} onChange={(value) => updateAssumption("loanRate", value)} />
           </label>
         </div>
       </section>
@@ -1368,13 +1381,18 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
   );
 }
 
-function RollupPage({ locations, inputs, updateInput }) {
+function RollupPage({ assumptions, locations, inputs, updateAssumption, updateInput }) {
   const rollupModel = useMemo(() => calculateRollupModel(locations, inputs), [locations, inputs]);
 
   return (
     <section className="workspace">
       <div className="leftRail">
-        <RollupInputsPanel inputs={inputs} updateInput={updateInput} />
+        <RollupInputsPanel
+          assumptions={assumptions}
+          inputs={inputs}
+          updateAssumption={updateAssumption}
+          updateInput={updateInput}
+        />
       </div>
       <div>
         <RollupDashboard inputs={inputs} locations={locations} rollupModel={rollupModel} />
@@ -2578,8 +2596,16 @@ function ScenarioShell({ activeSubView, setActiveSubView, tabs, children }) {
   );
 }
 
-function RobsStructurePage({ locations, inputs, updateInput }) {
-  return <RollupPage locations={locations} inputs={inputs} updateInput={updateInput} />;
+function RobsStructurePage({ assumptions, locations, inputs, updateAssumption, updateInput }) {
+  return (
+    <RollupPage
+      assumptions={assumptions}
+      locations={locations}
+      inputs={inputs}
+      updateAssumption={updateAssumption}
+      updateInput={updateInput}
+    />
+  );
 }
 
 function ExitInputsPanel({ inputs, updateInput }) {
@@ -2975,7 +3001,13 @@ export function App() {
       </nav>
 
       {activeView === "robs" ? (
-        <RobsStructurePage locations={activeScenarioLocations} inputs={rollupInputs} updateInput={updateRollupInput} />
+        <RobsStructurePage
+          assumptions={assumptions}
+          locations={activeScenarioLocations}
+          inputs={rollupInputs}
+          updateAssumption={updateAssumption}
+          updateInput={updateRollupInput}
+        />
       ) : activeView === "exit" ? (
         <ExitScenarioPage locations={activeScenarioLocations} inputs={rollupInputs} updateInput={updateRollupInput} />
       ) : activeView === "wealth" ? (
@@ -2998,7 +3030,9 @@ export function App() {
               onUpdateOpenDate={updateLocationOpenDate}
             />
             <RollupInputsPanel
+              assumptions={assumptions}
               inputs={rollupInputs}
+              updateAssumption={updateAssumption}
               updateInput={updateRollupInput}
             />
           </div>

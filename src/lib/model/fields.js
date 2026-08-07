@@ -55,7 +55,7 @@ export const ASSUMPTION_GROUPS = [
     ],
   },
   {
-    title: "Initial Investment / Loan Terms",
+    title: "Initial Investment",
     fields: [
       ["franchiseFee", "Franchise fee", "currency"],
       ["equipment", "Equipment", "currency"],
@@ -65,8 +65,6 @@ export const ASSUMPTION_GROUPS = [
       ["legalFees", "Legal fees", "currency"],
       ["otherStartupCosts", "Other startup costs", "currency"],
       ["depositMonths", "Rental deposit months", "number"],
-      ["loanTermYears", "Loan term", "number"],
-      ["loanRate", "Loan rate", "percent"],
     ],
   },
 ];
