@@ -280,6 +280,9 @@ function buildLocationSetModel(locations) {
       operatingRevenue,
       totalExpenses: sum("totalExpenses"),
       grossOperatingProfit,
+      monthlySlots: sum("monthlySlots"),
+      labor: sum("labor"),
+      rent: sum("rent"),
       totalMembers: rows.at(-1)?.totalMembers ?? 0,
       operatingMargin: operatingRevenue ? grossOperatingProfit / operatingRevenue : 0,
     };

@@ -49,29 +49,27 @@ export function Dashboard({ model, locationMeta }) {
       <div className="tablePanel">
         <div className="panelTitle">
           <Calculator size={18} />
-          <h2>Monthly Model</h2>
+          <h2>Annual Model</h2>
         </div>
         <div className="tableWrap">
           <table>
             <thead>
               <tr>
-                <th>Month</th>
-                <th>Calendar</th>
+                <th>Year</th>
                 <th>Members</th>
                 <th>Revenue</th>
                 <th>Expenses</th>
                 <th>Op Profit</th>
-                <th>Classes / Mo.</th>
+                <th>Classes / Yr.</th>
                 <th>Labor</th>
                 <th>Rent</th>
                 <th>Margin</th>
               </tr>
             </thead>
             <tbody>
-              {model.months.map((m) => (
-                <tr key={m.month}>
-                  <td>{m.month}</td>
-                  <td>{m.monthLabel}</td>
+              {model.years.map((m) => (
+                <tr key={m.year}>
+                  <td>{m.year}</td>
                   <td>{formatValue(m.totalMembers, "number")}</td>
                   <td>{money.format(m.operatingRevenue)}</td>
                   <td>{money.format(m.totalExpenses)}</td>
