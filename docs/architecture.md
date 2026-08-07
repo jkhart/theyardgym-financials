@@ -30,7 +30,7 @@ The app models Hart Fitness, Inc. as the parent/financing entity. Each fixed loc
 
 Operating revenue and operating expenses belong to each location. The Hart Fitness, Inc. financing is modeled as an interest-only portfolio line of credit tied to location buildout funding, with principal carried as outstanding debt until sale/payoff.
 
-The active model remains a single-location operating view, but the assumption set is shared across all four locations. The Hart Fitness rollup calendarizes the four fixed locations by `projectedOpenDate` and sums pre-opening investment, monthly revenue, expense, cash flow, and debt service by portfolio month.
+The active model remains a single-location operating view, but the assumption set is shared across all four locations. The Hart Fitness rollup calendarizes the four fixed locations by `projectedOpenDate` and sums pre-opening investment, monthly revenue, expense, cash flow, and interest expense by portfolio month.
 
 Each location has a `projectedOpenDate`. The model starts operating Month 1 in that projected-open month. Initial investment outlays are scheduled evenly across the six months before opening, with owner-funded and debt-funded portions split according to the owner injection percentage.
 

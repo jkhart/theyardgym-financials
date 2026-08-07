@@ -73,8 +73,8 @@ export function Dashboard({ model, locationMeta }) {
                 <th>Year</th>
                 <th>Revenue</th>
                 <th>Expenses</th>
-                <th>Op Profit</th>
-                <th>Debt Service</th>
+                <th>Operating Income</th>
+                <th>Interest Expense</th>
                 <th>Corp Taxes</th>
                 <th>Net Income</th>
                 <th>Margin</th>

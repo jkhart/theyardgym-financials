@@ -1004,7 +1004,7 @@ const ROLLUP_CHART_METRICS = {
     label: "Cash Flow",
     title: "Annual Cash Flow",
     valueKey: "netCash",
-    ariaLabel: "Annual cash flow after taxes, debt service, and C-Corp cash used",
+    ariaLabel: "Annual cash flow after taxes, interest expense, and C-Corp cash used",
   },
   corporateTaxes: {
     label: "Corp Taxes",
@@ -1047,10 +1047,10 @@ const ROLLUP_CHART_METRICS = {
     ],
   },
   debtService: {
-    label: "Debt Service",
-    title: "Annual Debt Service",
+    label: "Interest Expense",
+    title: "Annual Interest Expense",
     valueKey: "corporateDebtService",
-    ariaLabel: "Annual interest-only debt service paid",
+    ariaLabel: "Annual interest expense paid",
   },
   distributions: {
     label: "Distributions",
@@ -1257,9 +1257,9 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
 	                <th>New Debt</th>
                 <th>Revenue</th>
                 <th>Expenses</th>
-                <th>Operating Profit</th>
+                <th>Operating Income</th>
                 <th>Owner Salary</th>
-                <th>Debt Service</th>
+                <th>Interest Expense</th>
                 <th>Interest</th>
                 <th>Taxable Income</th>
                 <th>Corp Taxes</th>
@@ -2868,9 +2868,9 @@ export function App() {
       "Members",
       "Operating Revenue",
       "Total Expenses",
-      "Operating Profit",
-      "Debt Service",
-      "Cash Flow After Debt Service",
+      "Operating Income",
+      "Interest Expense",
+      "Cash Flow After Interest Expense",
       "Operating Margin",
     ];
     const rows = locationSetModel.months.map((m) => [
