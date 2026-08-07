@@ -1142,15 +1142,6 @@ function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGrou
                 onChange={(event) => updateInput("rothIraStartingBalance", Number(event.target.value))}
               />
             </label>
-            <label className="inputRow">
-              <span>Traditional IRA rollover</span>
-              <input
-                type="number"
-                step="1000"
-                value={inputs.traditionalIraStartingBalance}
-                onChange={(event) => updateInput("traditionalIraStartingBalance", Number(event.target.value))}
-              />
-            </label>
           </div>
         )}
       </section>
