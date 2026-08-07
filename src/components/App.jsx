@@ -2984,20 +2984,6 @@ export function App() {
           Location Model
         </button>
         <button
-          className={activeView === "robs" ? "active" : ""}
-          onClick={() => setActiveView("robs")}
-          type="button"
-        >
-          ROBS Structure
-        </button>
-        <button
-          className={activeView === "exit" ? "active" : ""}
-          onClick={() => setActiveView("exit")}
-          type="button"
-        >
-          Exit Scenario
-        </button>
-        <button
           className={activeView === "wealth" ? "active" : ""}
           onClick={() => setActiveView("wealth")}
           type="button"
@@ -3006,17 +2992,7 @@ export function App() {
         </button>
       </nav>
 
-      {activeView === "robs" ? (
-        <RobsStructurePage
-          assumptions={assumptions}
-          locations={activeScenarioLocations}
-          inputs={rollupInputs}
-          updateAssumption={updateAssumption}
-          updateInput={updateRollupInput}
-        />
-      ) : activeView === "exit" ? (
-        <ExitScenarioPage locations={activeScenarioLocations} inputs={rollupInputs} updateInput={updateRollupInput} />
-      ) : activeView === "wealth" ? (
+      {activeView === "wealth" ? (
         <WealthPage
           activeSubView={activeWealthView}
           setActiveSubView={setActiveWealthView}
