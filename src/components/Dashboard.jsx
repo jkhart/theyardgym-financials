@@ -36,8 +36,9 @@ export function Dashboard({ model, locationMeta }) {
       columns: [
         ["beginningCash", "Beginning Cash", "money"],
         ["netIncome", "Net Income", "money"],
-        ["cCorpCashUsed", "Build-Out Cash Used", "money"],
+        ["cCorpCashUsed", "Capital Expenditures", "money"],
         ["totalDistributions", "Distributions", "money"],
+        ["saleNetProceeds", "Net Sale Proceeds", "money"],
         ["cashChange", "Net Change", "money"],
         ["endingCash", "Ending Cash", "money"],
       ],
@@ -46,15 +47,21 @@ export function Dashboard({ model, locationMeta }) {
   const activeConfig = statements[activeStatement];
 
   function formatCell(row, key, type) {
-    const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : (row[key] ?? 0);
+    const value =
+      key === "cashChange"
+        ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) + (row.saleNetProceeds ?? 0)
+        : (row[key] ?? 0);
     if (type === "percent") return pct.format(value);
     return money.format(value);
   }
 
   function cellClass(row, key, type) {
     if (type === "percent") return "";
-    const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : (row[key] ?? 0);
-    if (!["grossOperatingProfit", "netIncome", "cashChange", "endingCash"].includes(key)) return "";
+    const value =
+      key === "cashChange"
+        ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) + (row.saleNetProceeds ?? 0)
+        : (row[key] ?? 0);
+    if (!["grossOperatingProfit", "netIncome", "saleNetProceeds", "cashChange", "endingCash"].includes(key)) return "";
     return value < 0 ? "negative" : "positive";
   }
 
