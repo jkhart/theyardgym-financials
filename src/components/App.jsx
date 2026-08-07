@@ -16,13 +16,6 @@ import {
 const ROLLUP_STORAGE_KEY = "the-yard-gym.rollupInputs.v1";
 const SHARED_ASSUMPTIONS_STORAGE_KEY = "the-yard-gym.sharedLocationAssumptions.v1";
 
-const DEFAULT_LOCATION_META = {
-  id: "livermore",
-  locationName: "Livermore",
-  scenarioName: "Base Case",
-  projectedOpenDate: "2027-06-01",
-};
-
 const DEFAULT_ROLLUP_INPUTS = {
   entityName: "Hart Fitness, Inc.",
   modelStartDate: "2026-07-01",
@@ -224,6 +217,73 @@ function buildLocationRecords({ assumptions, modelStartDate, schedule }) {
       },
     };
   });
+}
+
+function buildLocationSetModel(locations) {
+  const rowsByMonth = new Map();
+
+  locations.forEach((location) => {
+    location.outputs.monthlySummary?.forEach((row) => {
+      const current = rowsByMonth.get(row.date) ?? {
+        date: row.date,
+        monthLabel: row.monthLabel,
+        totalMembers: 0,
+        operatingRevenue: 0,
+        totalExpenses: 0,
+        grossOperatingProfit: 0,
+        monthlySlots: 0,
+        labor: 0,
+        rent: 0,
+      };
+
+      rowsByMonth.set(row.date, {
+        ...current,
+        totalMembers: current.totalMembers + (row.totalMembers ?? 0),
+        operatingRevenue: current.operatingRevenue + (row.operatingRevenue ?? 0),
+        totalExpenses: current.totalExpenses + (row.totalExpenses ?? 0),
+        grossOperatingProfit: current.grossOperatingProfit + (row.grossOperatingProfit ?? 0),
+        monthlySlots: current.monthlySlots + (row.monthlySlots ?? 0),
+        labor: current.labor + (row.labor ?? 0),
+        rent: current.rent + (row.rent ?? 0),
+      });
+    });
+  });
+
+  const months = Array.from(rowsByMonth.values())
+    .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
+    .map((row, index) => ({
+      ...row,
+      month: index + 1,
+      operatingMargin: row.operatingRevenue ? row.grossOperatingProfit / row.operatingRevenue : 0,
+    }));
+
+  const yearGroups = months.reduce((groups, row) => {
+    const calendarYear = parseLocalDate(row.date).getFullYear();
+    const group = groups.get(calendarYear) ?? [];
+    group.push(row);
+    groups.set(calendarYear, group);
+    return groups;
+  }, new Map());
+
+  const years = Array.from(yearGroups, ([calendarYear, rows]) => {
+    const sum = (key) => rows.reduce((total, row) => total + row[key], 0);
+    const operatingRevenue = sum("operatingRevenue");
+    const grossOperatingProfit = sum("grossOperatingProfit");
+    return {
+      year: calendarYear,
+      operatingRevenue,
+      totalExpenses: sum("totalExpenses"),
+      grossOperatingProfit,
+      totalMembers: rows.at(-1)?.totalMembers ?? 0,
+      operatingMargin: operatingRevenue ? grossOperatingProfit / operatingRevenue : 0,
+    };
+  });
+
+  return {
+    months,
+    years,
+    totalInitialInvestment: locations.reduce((total, location) => total + (location.outputs.totalInitialInvestment ?? 0), 0),
+  };
 }
 
 function calculateRollupModel(locations, inputs, options = {}) {
@@ -2988,8 +3048,6 @@ export function App() {
   const [assumptions, setAssumptions] = useState(loadSharedAssumptions);
   const [openGroup, setOpenGroup] = useState("Portfolio Locations");
   const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
-  const [activeLocationId, setActiveLocationId] = useState(DEFAULT_LOCATION_META.id);
-  const [locationMeta, setLocationMeta] = useState(DEFAULT_LOCATION_META);
   const [activeView, setActiveView] = useState("location");
   const [activeWealthView, setActiveWealthView] = useState("overview");
   const [rollupInputs, setRollupInputs] = useState(loadRollupInputs);
@@ -3002,16 +3060,8 @@ export function App() {
       }),
     [assumptions, locationSchedule, rollupInputs.modelStartDate],
   );
+  const locationSetModel = useMemo(() => buildLocationSetModel(locations), [locations]);
   const activeScenarioLocations = locations;
-  const selectedLocation = locations.find((location) => location.id === activeLocationId) ?? locations[0];
-  const model = useMemo(
-    () =>
-      calculateModel(assumptions, {
-        projectedOpenDate: selectedLocation?.projectedOpenDate ?? DEFAULT_LOCATION_META.projectedOpenDate,
-        modelStartDate: rollupInputs.modelStartDate,
-      }),
-    [assumptions, selectedLocation?.projectedOpenDate, rollupInputs.modelStartDate],
-  );
 
   useEffect(() => {
     window.localStorage.setItem(SHARED_ASSUMPTIONS_STORAGE_KEY, JSON.stringify(assumptions));
@@ -3021,16 +3071,6 @@ export function App() {
     window.localStorage.setItem(ROLLUP_STORAGE_KEY, JSON.stringify(rollupInputs));
   }, [rollupInputs]);
 
-  useEffect(() => {
-    if (!selectedLocation) return;
-    setLocationMeta({
-      id: selectedLocation.id,
-      locationName: selectedLocation.locationName,
-      scenarioName: selectedLocation.scenarioName,
-      projectedOpenDate: selectedLocation.projectedOpenDate,
-    });
-  }, [selectedLocation]);
-
   function updateAssumption(key, value) {
     setAssumptions((current) => ({ ...current, [key]: Number.isFinite(value) ? value : 0 }));
   }
@@ -3039,23 +3079,10 @@ export function App() {
     setAssumptions(DEFAULT_ASSUMPTIONS);
     setLocationSchedule(FIXED_LOCATIONS);
     saveLocationSchedule(FIXED_LOCATIONS);
-    setActiveLocationId(DEFAULT_LOCATION_META.id);
-    setLocationMeta(DEFAULT_LOCATION_META);
   }
 
   function updateRollupInput(key, value) {
     setRollupInputs((current) => ({ ...current, [key]: value }));
-  }
-
-  function loadLocation(location) {
-    setActiveView("location");
-    setActiveLocationId(location.id);
-    setLocationMeta({
-      id: location.id,
-      locationName: location.locationName,
-      scenarioName: location.scenarioName,
-      projectedOpenDate: location.projectedOpenDate ?? DEFAULT_LOCATION_META.projectedOpenDate,
-    });
   }
 
   function updateLocationOpenDate(id, projectedOpenDate) {
@@ -3078,7 +3105,7 @@ export function App() {
       "Cash Flow After Debt Service",
       "Operating Margin",
     ];
-    const rows = model.months.map((m) => [
+    const rows = locationSetModel.months.map((m) => [
       m.month,
       m.monthLabel,
       m.totalMembers.toFixed(1),
@@ -3098,6 +3125,12 @@ export function App() {
     link.click();
     URL.revokeObjectURL(url);
   }
+
+  const locationSetMeta = {
+    locationName: "Portfolio Locations",
+    scenarioName: `${locations.length} locations`,
+    projectedOpenDate: rollupInputs.modelStartDate,
+  };
 
   return (
     <main>
@@ -3173,12 +3206,11 @@ export function App() {
               openGroup={openGroup}
               setOpenGroup={setOpenGroup}
               updateAssumption={updateAssumption}
-              onSelectLocation={loadLocation}
               onUpdateOpenDate={updateLocationOpenDate}
             />
           </div>
           <div>
-            <Dashboard model={model} locationMeta={locationMeta} />
+            <Dashboard model={locationSetModel} locationMeta={locationSetMeta} />
           </div>
         </section>
       )}

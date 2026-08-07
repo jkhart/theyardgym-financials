@@ -20,14 +20,13 @@ function AssumptionInput({ id, label, type, value, onChange }) {
   );
 }
 
-function LocationDateInput({ location, onFocus, onChange }) {
+function LocationDateInput({ location, onChange }) {
   return (
     <label className="inputRow">
       <span>{location.locationName}</span>
       <input
         type="date"
         value={location.projectedOpenDate}
-        onFocus={() => onFocus(location)}
         onChange={(event) => onChange(location.id, event.target.value)}
       />
     </label>
@@ -40,7 +39,6 @@ export function AssumptionsPanel({
   openGroup,
   setOpenGroup,
   updateAssumption,
-  onSelectLocation,
   onUpdateOpenDate,
 }) {
   return (
@@ -66,7 +64,6 @@ export function AssumptionsPanel({
               <LocationDateInput
                 key={location.id}
                 location={location}
-                onFocus={onSelectLocation}
                 onChange={onUpdateOpenDate}
               />
             ))}
