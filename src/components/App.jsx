@@ -1100,6 +1100,177 @@ function CorporateInputsPanel({ assumptions, inputs, updateAssumption, updateInp
   );
 }
 
+function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGroup }) {
+  const toggleGroup = (group) => setOpenGroup(openGroup === group ? "" : group);
+
+  return (
+    <aside className="assumptions rollupInputs">
+      <div className="panelTitle">
+        <h2>Personal Wealth</h2>
+      </div>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Current Assets")} type="button">
+          Current Assets
+          <ChevronDown size={16} className={openGroup === "Current Assets" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Current Assets" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>Cash</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.personalCashBalance}
+                onChange={(event) => updateInput("personalCashBalance", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>VOO balance</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.personalStartingBalance}
+                onChange={(event) => updateInput("personalStartingBalance", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Roth IRA</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.rothIraStartingBalance}
+                onChange={(event) => updateInput("rothIraStartingBalance", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Traditional IRA rollover</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.traditionalIraStartingBalance}
+                onChange={(event) => updateInput("traditionalIraStartingBalance", Number(event.target.value))}
+              />
+            </label>
+          </div>
+        )}
+      </section>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Household")} type="button">
+          Household
+          <ChevronDown size={16} className={openGroup === "Household" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Household" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>Birthday</span>
+              <input type="date" value={inputs.rothBirthDate} onChange={(event) => updateInput("rothBirthDate", event.target.value)} />
+            </label>
+            <label className="inputRow">
+              <span>Annual living needs</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.personalAnnualSpending}
+                onChange={(event) => updateInput("personalAnnualSpending", Number(event.target.value))}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Spending inflation</span>
+              <PercentInput
+                value={inputs.householdSpendingInflation}
+                onChange={(value) => updateInput("householdSpendingInflation", value)}
+              />
+            </label>
+          </div>
+        )}
+      </section>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Taxable Brokerage")} type="button">
+          Taxable Brokerage
+          <ChevronDown size={16} className={openGroup === "Taxable Brokerage" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Taxable Brokerage" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>Cap gains tax</span>
+              <PercentInput
+                value={inputs.personalCapitalGainsTaxRate}
+                onChange={(value) => updateInput("personalCapitalGainsTaxRate", value)}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Stock appreciation</span>
+              <PercentInput
+                value={inputs.personalStockAppreciation}
+                onChange={(value) => updateInput("personalStockAppreciation", value)}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Downside return</span>
+              <PercentInput
+                value={inputs.personalDownsideReturn}
+                onChange={(value) => updateInput("personalDownsideReturn", value)}
+              />
+            </label>
+            <label className="inputRow">
+              <span>Base return</span>
+              <PercentInput value={inputs.personalAnnualReturn} onChange={(value) => updateInput("personalAnnualReturn", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Upside return</span>
+              <PercentInput value={inputs.personalUpsideReturn} onChange={(value) => updateInput("personalUpsideReturn", value)} />
+            </label>
+          </div>
+        )}
+      </section>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Retirement Accounts")} type="button">
+          Retirement Accounts
+          <ChevronDown size={16} className={openGroup === "Retirement Accounts" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Retirement Accounts" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>ROBS conversion tax</span>
+              <PercentInput value={inputs.robsConversionTaxRate} onChange={(value) => updateInput("robsConversionTaxRate", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Downside return</span>
+              <PercentInput value={inputs.rothDownsideReturn} onChange={(value) => updateInput("rothDownsideReturn", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Base return</span>
+              <PercentInput value={inputs.rothAnnualReturn} onChange={(value) => updateInput("rothAnnualReturn", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Upside return</span>
+              <PercentInput value={inputs.rothUpsideReturn} onChange={(value) => updateInput("rothUpsideReturn", value)} />
+            </label>
+          </div>
+        )}
+      </section>
+      <section className="assumptionGroup">
+        <button className="groupToggle" onClick={() => toggleGroup("Planning")} type="button">
+          Planning
+          <ChevronDown size={16} className={openGroup === "Planning" ? "chevron open" : "chevron"} />
+        </button>
+        {openGroup === "Planning" && (
+          <div className="groupFields">
+            <label className="inputRow">
+              <span>Safe withdrawal rate</span>
+              <PercentInput value={inputs.safeWithdrawalRate} onChange={(value) => updateInput("safeWithdrawalRate", value)} />
+            </label>
+            <label className="inputRow">
+              <span>Portfolio loan LTV limit</span>
+              <PercentInput value={inputs.portfolioLoanLtvLimit} onChange={(value) => updateInput("portfolioLoanLtvLimit", value)} />
+            </label>
+          </div>
+        )}
+      </section>
+    </aside>
+  );
+}
+
 function RollupInputsPanel({ assumptions, inputs, updateAssumption, updateInput }) {
   return (
     <aside className="assumptions rollupInputs">
@@ -2952,6 +3123,7 @@ export function App() {
   const [assumptions, setAssumptions] = useState(loadSharedAssumptions);
   const [openGroup, setOpenGroup] = useState("Portfolio Locations");
   const [openCorporateGroup, setOpenCorporateGroup] = useState("Policy");
+  const [openPersonalWealthGroup, setOpenPersonalWealthGroup] = useState("Current Assets");
   const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
   const [activeView, setActiveView] = useState("location");
   const [activeWealthView, setActiveWealthView] = useState("overview");
@@ -3114,6 +3286,12 @@ export function App() {
               updateInput={updateRollupInput}
               openGroup={openCorporateGroup}
               setOpenGroup={setOpenCorporateGroup}
+            />
+            <PersonalWealthInputsPanel
+              inputs={rollupInputs}
+              updateInput={updateRollupInput}
+              openGroup={openPersonalWealthGroup}
+              setOpenGroup={setOpenPersonalWealthGroup}
             />
           </div>
           <div>
