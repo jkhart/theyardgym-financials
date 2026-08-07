@@ -2570,6 +2570,13 @@ function ExitInputsPanel({ inputs, updateInput }) {
       <section className="assumptionGroup">
         <div className="groupFields">
           <label className="inputRow">
+            <span>Sale type</span>
+            <select value={inputs.saleType ?? "stock"} onChange={(event) => updateInput("saleType", event.target.value)}>
+              <option value="stock">Stock sale</option>
+              <option value="asset">Asset sale</option>
+            </select>
+          </label>
+          <label className="inputRow">
             <span>Sale date</span>
             <input type="date" value={inputs.saleDate} onChange={(event) => updateInput("saleDate", event.target.value)} />
           </label>
