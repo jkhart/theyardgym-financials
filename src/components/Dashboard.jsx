@@ -35,9 +35,7 @@ export function Dashboard({ model, locationMeta }) {
       title: "Cash Flow",
       columns: [
         ["beginningCash", "Beginning Cash", "money"],
-        ["grossOperatingProfit", "Operating Income", "money"],
-        ["corporateDebtService", "Interest Paid", "money"],
-        ["corporateTaxes", "Taxes Paid", "money"],
+        ["netIncome", "Net Income", "money"],
         ["cCorpCashUsed", "Build-Out Cash Used", "money"],
         ["totalDistributions", "Distributions", "money"],
         ["cashChange", "Net Change", "money"],
