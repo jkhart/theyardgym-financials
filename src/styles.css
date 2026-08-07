@@ -194,7 +194,7 @@ footer {
 
 .workspace {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   align-items: start;
   max-width: 100vw;
 }
@@ -310,7 +310,7 @@ footer {
 
 .inputRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px;
+  grid-template-columns: minmax(0, 1fr) 132px;
   align-items: center;
   gap: 8px;
   font-size: 0.75rem;
