@@ -57,12 +57,13 @@ export function Dashboard({ model, locationMeta }) {
               <tr>
                 <th>Year</th>
                 <th>Members</th>
-                <th>Revenue</th>
-                <th>Expenses</th>
-                <th>Op Profit</th>
                 <th>Classes / Yr.</th>
+                <th>Revenue</th>
                 <th>Labor</th>
                 <th>Rent</th>
+                <th>Other Expenses</th>
+                <th>Total Expenses</th>
+                <th>Op Profit</th>
                 <th>Margin</th>
               </tr>
             </thead>
@@ -71,14 +72,15 @@ export function Dashboard({ model, locationMeta }) {
                 <tr key={m.year}>
                   <td>{m.year}</td>
                   <td>{formatValue(m.totalMembers, "number")}</td>
+                  <td>{formatValue(m.monthlySlots, "number")}</td>
                   <td>{money.format(m.operatingRevenue)}</td>
+                  <td>{money.format(m.labor)}</td>
+                  <td>{money.format(m.rent)}</td>
+                  <td>{money.format(m.totalExpenses - m.labor - m.rent)}</td>
                   <td>{money.format(m.totalExpenses)}</td>
                   <td className={m.grossOperatingProfit < 0 ? "negative" : "positive"}>
                     {money.format(m.grossOperatingProfit)}
                   </td>
-                  <td>{formatValue(m.monthlySlots, "number")}</td>
-                  <td>{money.format(m.labor)}</td>
-                  <td>{money.format(m.rent)}</td>
                   <td>{pct.format(m.operatingMargin)}</td>
                 </tr>
               ))}
