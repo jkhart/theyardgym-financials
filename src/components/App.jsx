@@ -1345,6 +1345,7 @@ function RollupPage({ assumptions, locations, inputs, updateAssumption, updateIn
           updateAssumption={updateAssumption}
           updateInput={updateInput}
         />
+        <ExitInputsPanel inputs={inputs} updateInput={updateInput} />
       </div>
       <div>
         <RollupDashboard inputs={inputs} locations={locations} rollupModel={rollupModel} />
@@ -2561,12 +2562,10 @@ function RobsStructurePage({ assumptions, locations, inputs, updateAssumption, u
 }
 
 function ExitInputsPanel({ inputs, updateInput }) {
-  const modeledMonths = Math.max(1, Math.min(180, monthDiff(inputs.modelStartDate, inputs.saleDate) + 1));
-
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
-        <h2>Exit Inputs</h2>
+        <h2>Exit Scenario</h2>
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
@@ -2574,10 +2573,6 @@ function ExitInputsPanel({ inputs, updateInput }) {
             <span>Sale date</span>
             <input type="date" value={inputs.saleDate} onChange={(event) => updateInput("saleDate", event.target.value)} />
           </label>
-          <div className="rollupLocationRow">
-            <strong>Modeled months</strong>
-            <span>{num.format(modeledMonths)}</span>
-          </div>
           <label className="inputRow">
             <span>EBITDA multiple</span>
             <input
@@ -2601,16 +2596,6 @@ function ExitInputsPanel({ inputs, updateInput }) {
               onChange={(event) => updateInput("assetTaxBasis", Number(event.target.value))}
             />
           </label>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Structure Tax Treatment
-        </button>
-        <div className="groupFields">
-          <p className="emptyState">
-            Exit assumptions are shared across the ROBS stock-sale and asset-sale cases.
-          </p>
         </div>
       </section>
     </aside>
@@ -2988,6 +2973,7 @@ export function App() {
               updateAssumption={updateAssumption}
               updateInput={updateRollupInput}
             />
+            <ExitInputsPanel inputs={rollupInputs} updateInput={updateRollupInput} />
           </div>
           <div>
             <Dashboard model={locationFinancialModel} locationMeta={locationSetMeta} />
