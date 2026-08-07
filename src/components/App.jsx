@@ -53,6 +53,19 @@ const DEFAULT_ROLLUP_INPUTS = {
   portfolioLoanLtvLimit: 0.5,
 };
 
+const FIXED_ROLLUP_INPUTS = {
+  entityName: "Hart Fitness, Inc.",
+  modelStartDate: "2026-07-01",
+  roth401kContribution: 450000,
+  traditionalIraStartingBalance: 450000,
+  federalTaxRate: 0.21,
+  stateTaxRate: 0.0884,
+};
+
+function normalizeRollupInputs(inputs) {
+  return { ...DEFAULT_ROLLUP_INPUTS, ...inputs, ...FIXED_ROLLUP_INPUTS };
+}
+
 function getWealthSource(value) {
   if (value === "robs-asset") return "robs-asset";
   return "robs-stock";
@@ -165,11 +178,10 @@ function getInflationFactor(rate, elapsedMonths) {
 function loadRollupInputs() {
   try {
     const raw = window.localStorage.getItem(ROLLUP_STORAGE_KEY);
-    if (!raw) return DEFAULT_ROLLUP_INPUTS;
-    const parsed = { ...DEFAULT_ROLLUP_INPUTS, ...JSON.parse(raw) };
-    return parsed;
+    if (!raw) return normalizeRollupInputs();
+    return normalizeRollupInputs(JSON.parse(raw));
   } catch {
-    return DEFAULT_ROLLUP_INPUTS;
+    return normalizeRollupInputs();
   }
 }
 
@@ -967,12 +979,6 @@ function PercentInput({ value, onChange }) {
 }
 
 function RollupInputsPanel({ inputs, locations, updateInput }) {
-  const ownershipSplit = getOwnershipSplit(inputs);
-  const salaryStartDate = getFirstProjectedOpenDate(locations);
-  const distributionStartDate = getLastProjectedOpenDate(locations);
-  const combinedTaxRate = (Number(inputs.federalTaxRate) || 0) + (Number(inputs.stateTaxRate) || 0);
-  const modeledMonths = Math.max(1, Math.min(180, monthDiff(inputs.modelStartDate, inputs.saleDate) + 1));
-
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
@@ -980,35 +986,6 @@ function RollupInputsPanel({ inputs, locations, updateInput }) {
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
-          <label className="inputRow">
-            <span>C-Corp entity</span>
-            <input value={inputs.entityName} onChange={(event) => updateInput("entityName", event.target.value)} />
-          </label>
-          <label className="inputRow">
-            <span>Model start</span>
-            <input
-              type="date"
-              value={inputs.modelStartDate}
-              onChange={(event) => updateInput("modelStartDate", event.target.value)}
-            />
-          </label>
-          <div className="rollupLocationRow">
-            <strong>Modeled months</strong>
-            <span>{num.format(modeledMonths)}</span>
-          </div>
-          <label className="inputRow">
-            <span>ROBS Roth 401k cash</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.roth401kContribution}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                updateInput("roth401kContribution", value);
-                updateInput("traditionalIraStartingBalance", value);
-              }}
-            />
-          </label>
           <label className="inputRow">
             <span>Personal cash</span>
             <input
@@ -1043,54 +1020,6 @@ function RollupInputsPanel({ inputs, locations, updateInput }) {
               onChange={(value) => updateInput("ownerSalaryInflation", value)}
             />
           </label>
-          <div className="rollupLocationRow">
-            <strong>Salary starts</strong>
-            <span>{salaryStartDate ? formatMonthLabel(salaryStartDate) : "No locations"}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>Base monthly at full rollout</strong>
-            <span>{money.format(((Number(inputs.annualOwnerSalary) || 0) / 12) * locations.length)}</span>
-          </div>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Corporate Taxes
-        </button>
-        <div className="groupFields">
-          <label className="inputRow">
-            <span>Federal tax rate</span>
-            <input
-              type="number"
-              step="0.1"
-              value={((Number(inputs.federalTaxRate) || 0) * 100).toFixed(1)}
-              onChange={(event) => updateInput("federalTaxRate", Number(event.target.value) / 100)}
-            />
-          </label>
-          <label className="inputRow">
-            <span>State tax rate</span>
-            <input
-              type="number"
-              step="0.1"
-              value={((Number(inputs.stateTaxRate) || 0) * 100).toFixed(1)}
-              onChange={(event) => updateInput("stateTaxRate", Number(event.target.value) / 100)}
-            />
-          </label>
-          <p className="emptyState">
-            {pct.format(combinedTaxRate)} combined rate. Taxable income = operating profit - interest. No depreciation
-            benefit assumed.
-          </p>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Distribution Policy
-        </button>
-        <div className="groupFields">
-          <div className="rollupLocationRow">
-            <strong>Starts after last open</strong>
-            <span>{distributionStartDate ? formatMonthLabel(distributionStartDate) : "No locations"}</span>
-          </div>
           <label className="inputRow">
             <span>Cash floor</span>
             <input
@@ -1100,42 +1029,6 @@ function RollupInputsPanel({ inputs, locations, updateInput }) {
               onChange={(event) => updateInput("distributionCashFloor", Number(event.target.value))}
             />
           </label>
-          <p className="emptyState">
-            After the latest projected opening, monthly excess cash above the floor is distributed by ownership.
-          </p>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Ownership Split
-        </button>
-        <div className="groupFields">
-          <div className="rollupLocationRow">
-            <strong>Roth 401k</strong>
-            <span>{pct.format(ownershipSplit.roth401kPct)}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>Personal</strong>
-            <span>{pct.format(ownershipSplit.personalPct)}</span>
-          </div>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Included Locations
-          <span>{num.format(locations.length)}</span>
-        </button>
-        <div className="groupFields">
-          {locations.length === 0 ? (
-            <p className="emptyState">No active locations included.</p>
-          ) : (
-            locations.map((location) => (
-              <div className="rollupLocationRow" key={location.id}>
-                <strong>{location.locationName}</strong>
-                <span>{location.projectedOpenDate}</span>
-              </div>
-            ))
-          )}
         </div>
       </section>
     </aside>
@@ -1594,7 +1487,7 @@ function ScenarioLineChart({ scenarios, ariaLabel }) {
   );
 }
 
-function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel }) {
+function RothInputsPanel({ inputs, updateInput }) {
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
@@ -1602,19 +1495,6 @@ function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel }) {
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
-          <label className="inputRow">
-            <span>ROBS Roth 401k cash</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.roth401kContribution}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                updateInput("roth401kContribution", value);
-                updateInput("traditionalIraStartingBalance", value);
-              }}
-            />
-          </label>
           <label className="inputRow">
             <span>Downside return</span>
             <PercentInput value={inputs.rothDownsideReturn} onChange={(value) => updateInput("rothDownsideReturn", value)} />
@@ -1627,25 +1507,6 @@ function RothInputsPanel({ inputs, updateInput, rothModel, rollupModel }) {
             <span>Upside return</span>
             <PercentInput value={inputs.rothUpsideReturn} onChange={(value) => updateInput("rothUpsideReturn", value)} />
           </label>
-          <div className="rollupLocationRow">
-            <strong>Growth starts</strong>
-            <span>{rollupModel.distributionStartDate ? formatMonthLabel(rollupModel.distributionStartDate) : "No locations"}</span>
-          </div>
-          <p className="emptyState">
-            This is the separate Roth 401k created by the ROBS. It is funded by the IRA rollover/conversion, buys
-            Hart Fitness stock, and then receives its share of distributions and sale proceeds.
-          </p>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Projection
-        </button>
-        <div className="groupFields">
-          <div className="rollupLocationRow">
-            <strong>Base monthly return</strong>
-            <span>{pct.format(rothModel.monthlyReturn)}</span>
-          </div>
         </div>
       </section>
     </aside>
@@ -1747,12 +1608,7 @@ function RothPage({ locations, inputs, updateInput }) {
   return (
     <section className="workspace">
       <div className="leftRail">
-        <RothInputsPanel
-          inputs={inputs}
-          updateInput={updateInput}
-          rothModel={rothModel}
-          rollupModel={rollupModel}
-        />
+        <RothInputsPanel inputs={inputs} updateInput={updateInput} />
       </div>
       <div>
         <RothDashboard rothModel={rothModel} inputs={inputs} />
@@ -2248,10 +2104,7 @@ function PersonalPage({ locations, inputs, updateInput }) {
   );
 }
 
-function WealthOverviewInputsPanel({ inputs, updateInput, personalModel }) {
-  const conversionTax =
-    (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0);
-
+function WealthOverviewInputsPanel({ inputs, updateInput }) {
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
@@ -2287,54 +2140,6 @@ function WealthOverviewInputsPanel({ inputs, updateInput, personalModel }) {
             <span>Portfolio loan LTV limit</span>
             <PercentInput value={inputs.portfolioLoanLtvLimit} onChange={(value) => updateInput("portfolioLoanLtvLimit", value)} />
           </label>
-          <label className="inputRow">
-            <span>Traditional IRA rollover</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.traditionalIraStartingBalance}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                updateInput("traditionalIraStartingBalance", value);
-                updateInput("roth401kContribution", value);
-              }}
-            />
-          </label>
-          <label className="inputRow">
-            <span>ROBS conversion tax</span>
-            <PercentInput
-              value={inputs.robsConversionTaxRate}
-              onChange={(value) => updateInput("robsConversionTaxRate", value)}
-            />
-          </label>
-          <div className="rollupLocationRow">
-            <strong>Conversion tax due</strong>
-            <span>{money.format(conversionTax)}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>Modeled months</strong>
-            <span>{num.format(personalModel.months.length)}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>Through age</strong>
-            <span>{num.format(personalModel.ageAtEnd)}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>End month</strong>
-            <span>{formatMonthLabel(personalModel.endDate)}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>Starting monthly needs</strong>
-            <span>{money.format(personalModel.monthlySpending)}</span>
-          </div>
-          <div className="rollupLocationRow">
-            <strong>Ending monthly needs</strong>
-            <span>{money.format(personalModel.endingMonthlySpending)}</span>
-          </div>
-          <p className="emptyState">
-            These household assumptions apply across the Wealth accounts regardless of which business structure supplies
-            the cash flows.
-          </p>
         </div>
       </section>
     </aside>
@@ -2700,7 +2505,7 @@ function WealthOverview({ locations, inputs, updateInput }) {
   );
 }
 
-function IraPage({ inputs, updateInput }) {
+function IraPage({ inputs }) {
   const conversionTax =
     (Number(inputs.traditionalIraStartingBalance) || 0) * (Number(inputs.robsConversionTaxRate) || 0);
 
@@ -2709,38 +2514,18 @@ function IraPage({ inputs, updateInput }) {
       <div className="leftRail">
         <aside className="assumptions rollupInputs">
           <div className="panelTitle">
-            <h2>IRA Rollover Inputs</h2>
+            <h2>IRA Rollover</h2>
           </div>
           <section className="assumptionGroup">
             <div className="groupFields">
-              <label className="inputRow">
-                <span>Traditional IRA rollover</span>
-                <input
-                  type="number"
-                  step="1000"
-                  value={inputs.traditionalIraStartingBalance}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    updateInput("traditionalIraStartingBalance", value);
-                    updateInput("roth401kContribution", value);
-                  }}
-                />
-              </label>
-              <label className="inputRow">
-                <span>Conversion tax rate</span>
-                <PercentInput
-                  value={inputs.robsConversionTaxRate}
-                  onChange={(value) => updateInput("robsConversionTaxRate", value)}
-                />
-              </label>
               <div className="rollupLocationRow">
-                <strong>Conversion tax due</strong>
+                <strong>Traditional IRA rollover</strong>
+                <span>{money.format(inputs.traditionalIraStartingBalance)}</span>
+              </div>
+              <div className="rollupLocationRow">
+                <strong>Conversion tax</strong>
                 <span>{money.format(conversionTax)}</span>
               </div>
-              <p className="emptyState">
-                The Traditional IRA is rolled into the company 401k, converted to Roth, and then used to fund the ROBS
-                Roth 401k ownership stake.
-              </p>
             </div>
           </section>
         </aside>
@@ -3102,7 +2887,7 @@ export function App() {
   }
 
   function updateRollupInput(key, value) {
-    setRollupInputs((current) => ({ ...current, [key]: value }));
+    setRollupInputs((current) => normalizeRollupInputs({ ...current, [key]: value }));
   }
 
   function updateLocationOpenDate(id, projectedOpenDate) {
