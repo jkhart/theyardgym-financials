@@ -50,6 +50,5 @@ export const DEFAULT_ASSUMPTIONS = {
   legalFees: 20000,
   otherStartupCosts: 100000,
   ownerInjectionPct: 0.2,
-  loanTermYears: 20,
   loanRate: 0.06,
 };

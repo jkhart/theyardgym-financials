@@ -97,12 +97,6 @@ function getOwnershipSplit(inputs) {
   };
 }
 
-function pmt(rate, periods, principal) {
-  if (!principal) return 0;
-  if (!rate) return principal / periods;
-  return principal * (rate * Math.pow(1 + rate, periods)) / (Math.pow(1 + rate, periods) - 1);
-}
-
 function parseLocalDate(value) {
   const date = value ? new Date(`${value}T00:00:00`) : new Date("2026-07-01T00:00:00");
   return Number.isNaN(date.getTime()) ? new Date("2026-07-01T00:00:00") : date;
@@ -348,7 +342,6 @@ function calculateRollupModel(locations, inputs, options = {}) {
       corporateOperatingProfit: 0,
       ownerSalary: 0,
       corporateDebtService: 0,
-      debtPrincipal: 0,
       debtInterest: 0,
       taxableIncome: 0,
       corporateTaxes: 0,
@@ -428,11 +421,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
     activeLoans.forEach((loan) => {
       if (loan.balance <= 0) return;
       const interest = loan.balance * loan.monthlyRate;
-      const principal = Math.min(Math.max(loan.monthlyPayment - interest, 0), loan.balance);
-      const debtService = principal + interest;
-      loan.balance = Math.max(0, loan.balance - principal);
-      month.corporateDebtService += debtService;
-      month.debtPrincipal += principal;
+      month.corporateDebtService += interest;
       month.debtInterest += interest;
     });
     month.taxableIncome = Math.max(0, month.corporateOperatingProfit - month.debtInterest);
@@ -470,11 +459,9 @@ function calculateRollupModel(locations, inputs, options = {}) {
       });
       if (newDebt > 0) {
         const monthlyRate = (location.assumptions?.loanRate ?? DEFAULT_ASSUMPTIONS.loanRate) / 12;
-        const termMonths = (location.assumptions?.loanTermYears ?? DEFAULT_ASSUMPTIONS.loanTermYears) * 12;
         activeLoans.push({
           locationId: location.id,
           balance: newDebt,
-          monthlyPayment: pmt(monthlyRate, termMonths, newDebt),
           monthlyRate,
         });
       }
@@ -545,7 +532,6 @@ function calculateRollupModel(locations, inputs, options = {}) {
       brokerageCashFromSalary: sum("brokerageCashFromSalary"),
       brokerageCashUsedForLiving: sum("brokerageCashUsedForLiving"),
       corporateDebtService: sum("corporateDebtService"),
-      debtPrincipal: sum("debtPrincipal"),
       debtInterest: sum("debtInterest"),
       taxableIncome: sum("taxableIncome"),
       corporateTaxes: sum("corporateTaxes"),
@@ -992,15 +978,6 @@ function RollupInputsPanel({ assumptions, inputs, updateAssumption, updateInput 
             />
           </label>
           <label className="inputRow">
-            <span>Loan term</span>
-            <input
-              type="number"
-              step="1"
-              value={assumptions.loanTermYears}
-              onChange={(event) => updateAssumption("loanTermYears", Number(event.target.value))}
-            />
-          </label>
-          <label className="inputRow">
             <span>Loan rate</span>
             <PercentInput value={assumptions.loanRate} onChange={(value) => updateAssumption("loanRate", value)} />
           </label>
@@ -1073,11 +1050,7 @@ const ROLLUP_CHART_METRICS = {
     label: "Debt Service",
     title: "Annual Debt Service",
     valueKey: "corporateDebtService",
-    ariaLabel: "Annual debt service paid",
-    stackedKeys: [
-      ["debtPrincipal", "Principal"],
-      ["debtInterest", "Interest"],
-    ],
+    ariaLabel: "Annual interest-only debt service paid",
   },
   distributions: {
     label: "Distributions",
@@ -1287,7 +1260,6 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
                 <th>Operating Profit</th>
                 <th>Owner Salary</th>
                 <th>Debt Service</th>
-                <th>Principal</th>
                 <th>Interest</th>
                 <th>Taxable Income</th>
                 <th>Corp Taxes</th>
@@ -1330,7 +1302,6 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
                   </td>
                   <td>{money.format(month.ownerSalary)}</td>
                   <td>{money.format(month.corporateDebtService)}</td>
-                  <td>{money.format(month.debtPrincipal)}</td>
                   <td>{money.format(month.debtInterest)}</td>
                   <td>{money.format(month.taxableIncome)}</td>
                   <td>{money.format(month.corporateTaxes)}</td>

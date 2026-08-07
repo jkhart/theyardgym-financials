@@ -1,8 +1,3 @@
-function pmt(rate, periods, principal) {
-  if (!rate) return principal / periods;
-  return principal * (rate * Math.pow(1 + rate, periods)) / (Math.pow(1 + rate, periods) - 1);
-}
-
 function parseDate(value) {
   const date = value ? new Date(`${value}T00:00:00`) : new Date("2027-01-01T00:00:00");
   return Number.isNaN(date.getTime()) ? new Date("2027-01-01T00:00:00") : date;
@@ -51,7 +46,7 @@ export function calculateModel(a, options = {}) {
     rentalDeposit;
   const ownerInjection = totalInitialInvestment * a.ownerInjectionPct;
   const loanAmount = totalInitialInvestment - ownerInjection;
-  const monthlyLoanPayment = pmt(a.loanRate / 12, a.loanTermYears * 12, loanAmount);
+  const monthlyLoanPayment = loanAmount * (a.loanRate / 12);
   const monthlyInitialInvestmentOutlay = totalInitialInvestment / 6;
   const preOpeningMonths = Array.from({ length: 6 }, (_, i) => {
     const relativeMonth = i - 6;
@@ -136,10 +131,8 @@ export function calculateModel(a, options = {}) {
     const taxPaid = totalExpenses * a.salesTax;
     const netTaxPayable = taxReceived - taxPaid;
     const interest = loanBalance * (a.loanRate / 12);
-    const principal = Math.min(monthlyLoanPayment - interest, loanBalance);
-    loanBalance = Math.max(0, loanBalance - principal);
     const grossOperatingProfit = operatingRevenue - totalExpenses - netTaxPayable;
-    const corporateDebtService = principal + interest;
+    const corporateDebtService = interest;
     const locationOperatingCashFlow = grossOperatingProfit;
     const cashFlowAfterCorporateDebt = locationOperatingCashFlow - corporateDebtService;
 
@@ -177,7 +170,6 @@ export function calculateModel(a, options = {}) {
       taxReceived,
       taxPaid,
       netTaxPayable,
-      principal,
       interest,
       debtService: corporateDebtService,
       corporateDebtService,
