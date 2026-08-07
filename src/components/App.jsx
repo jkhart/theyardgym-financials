@@ -29,7 +29,6 @@ const DEFAULT_ROLLUP_INPUTS = {
   ownerSalaryInflation: 0.03,
   federalTaxRate: 0.21,
   stateTaxRate: 0.0884,
-  distributionCashFloor: 100000,
   ebitdaMultiple: 5,
   saleDate: "2036-01-01",
   saleType: "stock",
@@ -64,7 +63,10 @@ const FIXED_ROLLUP_INPUTS = {
 };
 
 function normalizeRollupInputs(inputs) {
-  return { ...DEFAULT_ROLLUP_INPUTS, ...inputs, ...FIXED_ROLLUP_INPUTS };
+  const normalized = { ...DEFAULT_ROLLUP_INPUTS, ...inputs, ...FIXED_ROLLUP_INPUTS };
+  normalized.minimumWorkingCapital = Number(normalized.minimumWorkingCapital) || 0;
+  normalized.distributionCashFloor = normalized.minimumWorkingCapital;
+  return normalized;
 }
 
 function getWealthSource(value) {
@@ -315,10 +317,9 @@ function calculateRollupModel(locations, inputs, options = {}) {
   const horizonMonths = Math.max(1, Math.min(180, monthDiff(inputs.modelStartDate, saleDate) + 1));
   const startingCash = (Number(inputs.roth401kContribution) || 0) + (Number(inputs.personalContribution) || 0);
   let brokerageCashAvailable = Number(inputs.personalCashBalance) || 0;
-  const minimumWorkingCapital = Number(inputs.minimumWorkingCapital) || 0;
+  const cCorpCashReserve = Number(inputs.minimumWorkingCapital) || 0;
   const startingMonthlyOwnerSalaryPerLocation = (Number(inputs.annualOwnerSalary) || 0) / 12;
   const ownerSalaryInflation = Number(inputs.ownerSalaryInflation) || 0;
-  const distributionCashFloor = Number(inputs.distributionCashFloor) || 0;
   const combinedTaxRate = (Number(inputs.federalTaxRate) || 0) + (Number(inputs.stateTaxRate) || 0);
   const ebitdaMultiple = Number(inputs.ebitdaMultiple) || 0;
   const saleType = options.saleType ?? (inputs.saleType === "asset" ? "asset" : "stock");
@@ -439,7 +440,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       .filter((request) => request.outlay > 0);
 
     fundingRequests.forEach(({ location, outlay }) => {
-      const availableCash = Math.max(0, cCorpCash - minimumWorkingCapital);
+      const availableCash = Math.max(0, cCorpCash - cCorpCashReserve);
       const cCorpCashUsed = Math.min(outlay, availableCash);
       const remainingAfterCorpCash = outlay - cCorpCashUsed;
       const brokerageCashUsed = Math.min(remainingAfterCorpCash, brokerageCashAvailable);
@@ -478,7 +479,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       month.cCorpCashUsed;
     const distributionsAllowed = distributionStartDate && monthDiff(distributionStartDate, month.date) >= 0;
     if (distributionsAllowed) {
-      const cashAvailableForDistribution = Math.max(0, cCorpCash - distributionCashFloor);
+      const cashAvailableForDistribution = Math.max(0, cCorpCash - cCorpCashReserve);
       month.totalDistributions = cashAvailableForDistribution;
       month.roth401kDistribution = month.totalDistributions * ownershipSplit.roth401kPct;
       month.personalDistribution = month.totalDistributions * ownershipSplit.personalPct;
@@ -570,11 +571,11 @@ function calculateRollupModel(locations, inputs, options = {}) {
     years,
     fundingByLocation: Object.fromEntries(fundingByLocation),
     startingCash,
-    minimumWorkingCapital,
+    minimumWorkingCapital: cCorpCashReserve,
     monthlyOwnerSalary: startingMonthlyOwnerSalaryPerLocation,
     ownerSalaryInflation,
     salaryStartDate,
-    distributionCashFloor,
+    distributionCashFloor: cCorpCashReserve,
     distributionStartDate,
     combinedTaxRate,
     ebitdaMultiple,
@@ -979,16 +980,16 @@ function PercentInput({ value, onChange }) {
   return <input type="number" step="0.1" value={draft} onChange={(event) => updateDraft(event.target.value)} />;
 }
 
-function RollupInputsPanel({ inputs, locations, updateInput }) {
+function RollupInputsPanel({ inputs, updateInput }) {
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
-        <h2>Setup</h2>
+        <h2>Corporate Policy</h2>
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
           <label className="inputRow">
-            <span>Min working capital</span>
+            <span>C-Corp cash reserve</span>
             <input
               type="number"
               step="1000"
@@ -1010,15 +1011,6 @@ function RollupInputsPanel({ inputs, locations, updateInput }) {
             <PercentInput
               value={inputs.ownerSalaryInflation}
               onChange={(value) => updateInput("ownerSalaryInflation", value)}
-            />
-          </label>
-          <label className="inputRow">
-            <span>Cash floor</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.distributionCashFloor}
-              onChange={(event) => updateInput("distributionCashFloor", Number(event.target.value))}
             />
           </label>
         </div>
@@ -1238,7 +1230,7 @@ function RollupDashboard({ inputs, locations, rollupModel }) {
           <article>
             <span>Starting Cash</span>
             <strong>{money.format(rollupModel.startingCash)}</strong>
-            <small>{money.format(rollupModel.minimumWorkingCapital)} working capital floor</small>
+            <small>{money.format(rollupModel.minimumWorkingCapital)} C-Corp cash reserve</small>
           </article>
           <article>
             <span>Total Investment</span>
@@ -1382,7 +1374,7 @@ function RollupPage({ locations, inputs, updateInput }) {
   return (
     <section className="workspace">
       <div className="leftRail">
-        <RollupInputsPanel inputs={inputs} locations={locations} updateInput={updateInput} />
+        <RollupInputsPanel inputs={inputs} updateInput={updateInput} />
       </div>
       <div>
         <RollupDashboard inputs={inputs} locations={locations} rollupModel={rollupModel} />
@@ -3007,7 +2999,6 @@ export function App() {
             />
             <RollupInputsPanel
               inputs={rollupInputs}
-              locations={activeScenarioLocations}
               updateInput={updateRollupInput}
             />
           </div>
