@@ -397,6 +397,8 @@ function calculateRollupModel(locations, inputs, options = {}) {
       saleNetProceeds: 0,
       roth401kSaleProceeds: 0,
       personalSaleProceeds: 0,
+      valuationEnterpriseValue: 0,
+      valuationEquityValue: 0,
     };
   };
   const months = Array.from({ length: horizonMonths }, (_, index) => emptyMonth(index));
@@ -525,8 +527,10 @@ function calculateRollupModel(locations, inputs, options = {}) {
   months.forEach((month, index) => {
     const trailingMonths = months.slice(Math.max(0, index - 11), index + 1);
     month.ttmOperatingProfit = trailingMonths.reduce((total, row) => total + row.corporateOperatingProfit, 0);
+    month.valuationEnterpriseValue = Math.max(0, month.ttmOperatingProfit * ebitdaMultiple);
+    month.valuationEquityValue = month.valuationEnterpriseValue - month.debtBalance + month.endingCash;
     if (!saleDate || toMonthKey(month.date) !== toMonthKey(saleDate)) return;
-    month.saleEnterpriseValue = month.ttmOperatingProfit * ebitdaMultiple;
+    month.saleEnterpriseValue = month.valuationEnterpriseValue;
     month.saleDebtPayoff = month.debtBalance;
     month.saleCashAtClose = month.endingCash;
     month.saleTransactionCosts = Math.max(0, month.saleEnterpriseValue * transactionCostRate);
@@ -555,7 +559,8 @@ function calculateRollupModel(locations, inputs, options = {}) {
     const grossOperatingProfit = sum("corporateOperatingProfit");
     const endingCash = end?.endingCash ?? startingCash;
     const debtBalance = end?.debtBalance ?? 0;
-    const enterpriseValue = grossOperatingProfit * ebitdaMultiple;
+    const enterpriseValue = end?.valuationEnterpriseValue ?? 0;
+    const equityValue = end?.valuationEquityValue ?? enterpriseValue - debtBalance + endingCash;
     return {
       calendarYear,
       preOpenInvestment: sum("preOpenInvestment"),
@@ -584,6 +589,8 @@ function calculateRollupModel(locations, inputs, options = {}) {
       saleNetProceeds: sum("saleNetProceeds"),
       roth401kSaleProceeds: sum("roth401kSaleProceeds"),
       personalSaleProceeds: sum("personalSaleProceeds"),
+      valuationEnterpriseValue: enterpriseValue,
+      valuationEquityValue: equityValue,
       cCorpCashUsed: sum("cCorpCashUsed"),
       brokerageCashUsed: sum("brokerageCashUsed"),
       newDebt: sum("newDebt"),
@@ -594,7 +601,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       totalLiabilities: end?.totalLiabilities ?? debtBalance,
       bookEquity: end?.bookEquity ?? endingCash - debtBalance,
       enterpriseValue,
-      equityValue: enterpriseValue - debtBalance + endingCash,
+      equityValue,
       totalMembers: end?.totalMembers ?? 0,
       operatingMargin: operatingRevenue ? grossOperatingProfit / operatingRevenue : 0,
     };

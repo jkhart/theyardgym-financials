@@ -768,6 +768,29 @@ footer {
   fill: #22262a;
 }
 
+.valuationChartWrap {
+  margin: 10px 0 14px;
+}
+
+.valuationEquityLabel {
+  fill: #fffdf8;
+  font-size: 12px;
+  font-weight: 900;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: #1d6f67;
+  stroke-width: 3px;
+}
+
+.valuationEnterpriseSwatch {
+  background: #1d6f67;
+}
+
+.valuationEquitySwatch {
+  background: #faf7ef;
+  border: 2px solid #1d6f67;
+}
+
 .chartYear {
   fill: #687076;
   font-size: 14px;
