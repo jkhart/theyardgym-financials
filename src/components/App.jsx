@@ -230,7 +230,12 @@ function buildLocationRecords({ assumptions, modelEndDate, modelStartDate, sched
 
 function buildLocationSetModel(locations) {
   const dates = Array.from(
-    new Set(locations.flatMap((location) => location.outputs.monthlySummary?.map((row) => row.date) ?? [])),
+    new Set(
+      locations.flatMap((location) => [
+        ...(location.outputs.preOpeningSummary?.map((row) => row.date) ?? []),
+        ...(location.outputs.monthlySummary?.map((row) => row.date) ?? []),
+      ]),
+    ),
   ).sort((a, b) => parseLocalDate(a) - parseLocalDate(b));
 
   const months = dates
@@ -239,10 +244,18 @@ function buildLocationSetModel(locations) {
         (total, location) => {
           const monthlySummary = location.outputs.monthlySummary ?? [];
           const operatingMonthIndex = monthDiff(location.projectedOpenDate, date);
-          if (operatingMonthIndex < 0 || monthlySummary.length === 0) return total;
+          const preOpenInvestment =
+            location.outputs.preOpeningSummary?.find((row) => row.date === date)?.initialInvestmentOutlay ?? 0;
+          if (operatingMonthIndex < 0 || monthlySummary.length === 0) {
+            return {
+              ...total,
+              preOpenInvestment: total.preOpenInvestment + preOpenInvestment,
+            };
+          }
           const row = monthlySummary[Math.min(operatingMonthIndex, monthlySummary.length - 1)];
           return {
             ...total,
+            preOpenInvestment: total.preOpenInvestment + preOpenInvestment,
             totalMembers: total.totalMembers + (row.totalMembers ?? 0),
             operatingRevenue: total.operatingRevenue + (row.operatingRevenue ?? 0),
             totalExpenses: total.totalExpenses + (row.totalExpenses ?? 0),
@@ -255,6 +268,7 @@ function buildLocationSetModel(locations) {
         {
           date,
           monthLabel: formatMonthLabel(date),
+          preOpenInvestment: 0,
           totalMembers: 0,
           operatingRevenue: 0,
           totalExpenses: 0,
@@ -266,11 +280,20 @@ function buildLocationSetModel(locations) {
       ),
     )
     .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
-    .map((row, index) => ({
-      ...row,
-      month: index + 1,
-      operatingMargin: row.operatingRevenue ? row.grossOperatingProfit / row.operatingRevenue : 0,
-    }));
+    .reduce((rows, row, index) => {
+      const priorCapitalAssets = rows.at(-1)?.capitalAssets ?? 0;
+      const capitalAssets = priorCapitalAssets + (row.preOpenInvestment ?? 0);
+      rows.push({
+        ...row,
+        month: index + 1,
+        capitalAssets,
+        totalAssets: capitalAssets,
+        totalLiabilities: 0,
+        bookEquity: capitalAssets,
+        operatingMargin: row.operatingRevenue ? row.grossOperatingProfit / row.operatingRevenue : 0,
+      });
+      return rows;
+    }, []);
 
   const yearGroups = months.reduce((groups, row) => {
     const calendarYear = parseLocalDate(row.date).getFullYear();
@@ -289,9 +312,14 @@ function buildLocationSetModel(locations) {
       operatingRevenue,
       totalExpenses: sum("totalExpenses"),
       grossOperatingProfit,
+      preOpenInvestment: sum("preOpenInvestment"),
       monthlySlots: sum("monthlySlots"),
       labor: sum("labor"),
       rent: sum("rent"),
+      capitalAssets: rows.at(-1)?.capitalAssets ?? 0,
+      totalAssets: rows.at(-1)?.totalAssets ?? 0,
+      totalLiabilities: rows.at(-1)?.totalLiabilities ?? 0,
+      bookEquity: rows.at(-1)?.bookEquity ?? 0,
       totalMembers: rows.at(-1)?.totalMembers ?? 0,
       operatingMargin: operatingRevenue ? grossOperatingProfit / operatingRevenue : 0,
     };
@@ -376,6 +404,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
   const fundingByLocation = new Map();
   const activeLoans = [];
   let cCorpCash = startingCash;
+  let capitalAssets = 0;
 
   locations.forEach((location) => {
     location.outputs.preOpeningSummary?.forEach((row) => {
@@ -467,6 +496,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       }
     });
 
+    capitalAssets += month.preOpenInvestment;
     month.netIncome = month.corporateOperatingProfit - month.debtInterest - month.corporateTaxes;
     month.netCash =
       month.corporateOperatingProfit -
@@ -485,6 +515,10 @@ function calculateRollupModel(locations, inputs, options = {}) {
     month.endingCash = cCorpCash;
     month.endingBrokerageCash = brokerageCashAvailable;
     month.debtBalance = activeLoans.reduce((total, loan) => total + loan.balance, 0);
+    month.capitalAssets = capitalAssets;
+    month.totalAssets = month.endingCash + month.capitalAssets;
+    month.totalLiabilities = month.debtBalance;
+    month.bookEquity = month.totalAssets - month.totalLiabilities;
     month.operatingMargin = month.operatingRevenue ? month.corporateOperatingProfit / month.operatingRevenue : 0;
   });
 
@@ -555,6 +589,10 @@ function calculateRollupModel(locations, inputs, options = {}) {
       newDebt: sum("newDebt"),
       endingCash,
       debtBalance,
+      capitalAssets: end?.capitalAssets ?? 0,
+      totalAssets: end?.totalAssets ?? endingCash,
+      totalLiabilities: end?.totalLiabilities ?? debtBalance,
+      bookEquity: end?.bookEquity ?? endingCash - debtBalance,
       enterpriseValue,
       equityValue: enterpriseValue - debtBalance + endingCash,
       totalMembers: end?.totalMembers ?? 0,

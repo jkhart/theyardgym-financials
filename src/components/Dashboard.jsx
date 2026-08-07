@@ -46,7 +46,9 @@ export function Dashboard({ model, locationMeta }) {
       title: "Balance Sheet",
       columns: [
         ["endingCash", "Cash", "money"],
-        ["debtBalance", "Debt", "money"],
+        ["capitalAssets", "Capital Assets", "money"],
+        ["totalAssets", "Total Assets", "money"],
+        ["totalLiabilities", "Total Liabilities", "money"],
         ["bookEquity", "Equity", "money"],
       ],
     },
@@ -81,7 +83,10 @@ export function Dashboard({ model, locationMeta }) {
   }
 
   function getRowValue(row, key) {
-    if (key === "bookEquity") return (row.endingCash ?? 0) - (row.debtBalance ?? 0);
+    if (key === "capitalAssets") return row.capitalAssets ?? 0;
+    if (key === "totalAssets") return row.totalAssets ?? (row.endingCash ?? 0) + (row.capitalAssets ?? 0);
+    if (key === "totalLiabilities") return row.totalLiabilities ?? row.debtBalance ?? 0;
+    if (key === "bookEquity") return getRowValue(row, "totalAssets") - getRowValue(row, "totalLiabilities");
     return row[key] ?? 0;
   }
 
