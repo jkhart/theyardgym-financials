@@ -976,7 +976,7 @@ function RollupInputsPanel({ inputs, locations, updateInput }) {
   return (
     <aside className="assumptions rollupInputs">
       <div className="panelTitle">
-        <h2>Rollup Inputs</h2>
+        <h2>Setup</h2>
       </div>
       <section className="assumptionGroup">
         <div className="groupFields">
@@ -3227,6 +3227,11 @@ export function App() {
               setOpenGroup={setOpenGroup}
               updateAssumption={updateAssumption}
               onUpdateOpenDate={updateLocationOpenDate}
+            />
+            <RollupInputsPanel
+              inputs={rollupInputs}
+              locations={activeScenarioLocations}
+              updateInput={updateRollupInput}
             />
           </div>
           <div>

@@ -45,7 +45,7 @@ export function AssumptionsPanel({
     <aside className="assumptions">
       <div className="panelTitle">
         <Settings2 size={18} />
-        <h2>Assumptions</h2>
+        <h2>Operations</h2>
       </div>
       <section className="assumptionGroup">
         <button
