@@ -2245,9 +2245,12 @@ function WealthOverviewDashboard({
 }) {
   const structureAccountModel = companyRothModel;
   const structureAccountLabel = "ROBS Roth 401k";
+  const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
   const endingPersonalVoo = personalModel.endingInvestedBalance ?? 0;
   const endingPersonalCash = personalModel.endingCashBalance ?? 0;
   const endingPersonalMarginDebt = personalModel.endingMarginDebt ?? 0;
+  const endingBusinessDebt = businessByMonth.get(toMonthKey(personalModel.months.at(-1)?.date))?.debtBalance ?? 0;
+  const endingPortfolioDebt = endingPersonalMarginDebt + endingBusinessDebt;
   const totalWealth = structureAccountModel.endingBalance + endingPersonalVoo + endingPersonalCash - endingPersonalMarginDebt;
   const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
   const endingBalanceFor = (model, key) =>
@@ -2256,6 +2259,7 @@ function WealthOverviewDashboard({
   const personalVooFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingInvestedBalance ?? endingPersonalVoo;
   const personalCashFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingCashBalance ?? endingPersonalCash;
   const personalMarginDebtFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingMarginDebt ?? endingPersonalMarginDebt;
+  const portfolioDebtFor = (key) => personalMarginDebtFor(key) + endingBusinessDebt;
   const structureAccountAfterTaxFor = (key) => {
     const value = endingBalanceFor(structureAccountModel, key);
     return value;
@@ -2269,7 +2273,7 @@ function WealthOverviewDashboard({
     `${money.format(endingBalanceFor(model, "downside"))} to ${money.format(endingBalanceFor(model, "upside"))}`;
   const personalCashRange = `${money.format(personalCashFor("downside"))} to ${money.format(personalCashFor("upside"))}`;
   const personalVooRange = `${money.format(personalVooFor("downside"))} to ${money.format(personalVooFor("upside"))}`;
-  const marginDebtRange = `${money.format(personalMarginDebtFor("downside"))} to ${money.format(personalMarginDebtFor("upside"))}`;
+  const portfolioDebtRange = `${money.format(portfolioDebtFor("downside"))} to ${money.format(portfolioDebtFor("upside"))}`;
   const afterTaxPersonalVoo = afterTaxBrokerage(endingPersonalVoo);
   const structureAccountAfterTax = structureAccountAfterTaxFor("base");
   const afterTaxWealth = endingPersonalCash + afterTaxPersonalVoo + structureAccountAfterTax - endingPersonalMarginDebt;
@@ -2283,7 +2287,6 @@ function WealthOverviewDashboard({
   const annualLifestyleSurplus = annualSafeWithdrawal - annualLivingNeeds;
   const monthlyLifestyleSurplus = annualLifestyleSurplus / 12;
   const portfolioLoanLtvLimit = Number(inputs.portfolioLoanLtvLimit) || 0;
-  const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
   const afterTaxStructureAccount = (value) => {
     return value;
   };
@@ -2440,10 +2443,10 @@ function WealthOverviewDashboard({
             <small>{personalVooRange}</small>
           </div>
           <div>
-            <span>Margin Debt</span>
-            <strong>{money.format(endingPersonalMarginDebt)}</strong>
-            <strong>{money.format(endingPersonalMarginDebt)}</strong>
-            <small>{marginDebtRange}</small>
+            <span>Portfolio Debt</span>
+            <strong>{money.format(endingPortfolioDebt)}</strong>
+            <strong>{money.format(endingPortfolioDebt)}</strong>
+            <small>{portfolioDebtRange}</small>
           </div>
           <div>
             <span>{structureAccountLabel}</span>
@@ -2480,9 +2483,7 @@ function WealthOverviewDashboard({
                 <th>Living Needs</th>
                 <th>Personal Taxes</th>
                 <th>Investment Growth</th>
-                <th>Business Debt</th>
-                <th>Margin Debt</th>
-                <th>Total Portfolio Debt</th>
+                <th>Portfolio Debt</th>
                 <th>Brokerage Collateral</th>
                 <th>Portfolio LTV</th>
                 <th>LTV Headroom</th>
@@ -2501,8 +2502,6 @@ function WealthOverviewDashboard({
                   <td>{money.format(row.livingNeeds)}</td>
                   <td>{money.format(row.personalTaxes)}</td>
                   <td>{money.format(row.investmentGrowth)}</td>
-                  <td>{money.format(row.businessDebtBalance)}</td>
-                  <td>{money.format(row.marginDebtBalance)}</td>
                   <td>{money.format(row.totalPortfolioDebt)}</td>
                   <td>{money.format(row.brokerageCollateralValue)}</td>
                   <td className={ltvStatusClass(row.portfolioLoanLtv)}>{pct.format(row.portfolioLoanLtv)}</td>
@@ -2534,9 +2533,7 @@ function WealthOverviewDashboard({
                 <th>Living Needs</th>
                 <th>Personal Taxes</th>
                 <th>Investment Growth</th>
-                <th>Business Debt</th>
-                <th>Margin Debt</th>
-                <th>Total Portfolio Debt</th>
+                <th>Portfolio Debt</th>
                 <th>Brokerage Collateral</th>
                 <th>Portfolio LTV</th>
                 <th>LTV Headroom</th>
@@ -2556,8 +2553,6 @@ function WealthOverviewDashboard({
                   <td>{money.format(row.livingNeeds)}</td>
                   <td>{money.format(row.personalTaxes)}</td>
                   <td>{money.format(row.investmentGrowth)}</td>
-                  <td>{money.format(row.businessDebtBalance)}</td>
-                  <td>{money.format(row.marginDebtBalance)}</td>
                   <td>{money.format(row.totalPortfolioDebt)}</td>
                   <td>{money.format(row.brokerageCollateralValue)}</td>
                   <td className={ltvStatusClass(row.portfolioLoanLtv)}>{pct.format(row.portfolioLoanLtv)}</td>

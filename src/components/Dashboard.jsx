@@ -52,12 +52,11 @@ export function Dashboard({ model, locationMeta }) {
       columns: [
         ["cash", "Cash", "money"],
         ["taxableBrokerage", "Taxable Brokerage", "money"],
-        ["marginDebt", "Margin Debt", "money"],
+        ["totalPortfolioDebt", "Portfolio Debt", "money"],
         ["robsRoth401k", "ROBS Roth 401k", "money"],
         ["totalWealth", "Total Wealth", "money"],
         ["afterTaxWealth", "After-Tax Wealth", "money"],
         ["withdrawalCapacity", "Withdrawal Capacity", "money"],
-        ["businessDebt", "Business Debt", "money"],
         ["portfolioLtv", "Portfolio LTV", "percent"],
       ],
     },
@@ -96,7 +95,7 @@ export function Dashboard({ model, locationMeta }) {
         "withdrawalCapacity",
         "cashChange",
         "endingCash",
-        "businessDebt",
+        "totalPortfolioDebt",
         "portfolioLtv",
       ].includes(key)
     ) {
