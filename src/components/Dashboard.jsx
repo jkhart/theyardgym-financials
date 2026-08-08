@@ -52,6 +52,7 @@ export function Dashboard({ model, locationMeta }) {
       columns: [
         ["cash", "Cash", "money"],
         ["taxableBrokerage", "Taxable Brokerage", "money"],
+        ["marginDebt", "Margin Debt", "money"],
         ["robsRoth401k", "ROBS Roth 401k", "money"],
         ["totalWealth", "Total Wealth", "money"],
         ["afterTaxWealth", "After-Tax Wealth", "money"],

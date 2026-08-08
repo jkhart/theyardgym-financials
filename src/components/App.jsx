@@ -759,13 +759,15 @@ function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs,
     const businessMonth = businessByMonth.get(toMonthKey(personalMonth.date));
     const cash = personalMonth.endingCashBalance ?? 0;
     const taxableBrokerage = personalMonth.endingInvestedBalance ?? 0;
+    const marginDebt = personalMonth.endingMarginDebt ?? 0;
     const robsRoth401k = companyRothMonth.endingBalance ?? 0;
-    const totalWealth = cash + taxableBrokerage + robsRoth401k;
-    const afterTaxWealth = cash + afterTaxBrokerage(taxableBrokerage) + robsRoth401k;
+    const totalWealth = cash + taxableBrokerage + robsRoth401k - marginDebt;
+    const afterTaxWealth = cash + afterTaxBrokerage(taxableBrokerage) + robsRoth401k - marginDebt;
     const withdrawalCapacity = afterTaxWealth * safeWithdrawalRate;
     const businessDebt = businessMonth?.debtBalance ?? 0;
-    const brokerageCollateral = Math.max(0, personalMonth.endingBalance ?? cash + taxableBrokerage);
-    const portfolioLtv = brokerageCollateral > 0 ? businessDebt / brokerageCollateral : businessDebt > 0 ? Infinity : 0;
+    const totalPortfolioDebt = businessDebt + marginDebt;
+    const brokerageCollateral = Math.max(0, cash + taxableBrokerage);
+    const portfolioLtv = brokerageCollateral > 0 ? totalPortfolioDebt / brokerageCollateral : totalPortfolioDebt > 0 ? Infinity : 0;
 
     return {
       month: personalMonth.month,
@@ -774,11 +776,13 @@ function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs,
       age: personalMonth.age,
       cash,
       taxableBrokerage,
+      marginDebt,
       robsRoth401k,
       totalWealth,
       afterTaxWealth,
       withdrawalCapacity,
       businessDebt,
+      totalPortfolioDebt,
       portfolioLtv,
     };
   });
@@ -832,12 +836,14 @@ function calculatePersonalModel(businessModel, inputs) {
     const monthlyReturn = Math.pow(1 + scenario.annualReturn, 1 / 12) - 1;
     let investedBalance = startingInvestedBalance;
     let cashBalance = startingCashBalance;
+    let marginDebt = 0;
     const months = Array.from({ length: horizonMonths }, (_, index) => {
       const date = toDateInputValue(addMonths(startDate, index));
       const businessMonth = businessByMonth.get(toMonthKey(date));
       const beginningInvestedBalance = investedBalance;
       const beginningCashBalance = cashBalance;
-      const beginningBalance = beginningInvestedBalance + beginningCashBalance;
+      const beginningMarginDebt = marginDebt;
+      const beginningBalance = beginningInvestedBalance + beginningCashBalance - beginningMarginDebt;
       const deployedToCorp = index === 0 ? businessContribution : 0;
       const brokerageCashUsedForBusiness = businessMonth?.brokerageCashUsed ?? 0;
       const conversionTaxes = index === 0 ? robsConversionTax : 0;
@@ -847,30 +853,21 @@ function calculatePersonalModel(businessModel, inputs) {
       const cashBeforeUses = beginningCashBalance + salary;
       const livingWithdrawals = getMonthlyLivingNeed(inputs, index);
       const cashUsedForLiving = Math.min(livingWithdrawals, cashBeforeUses);
-      const livingNeedsFromStock = livingWithdrawals - cashUsedForLiving;
+      const livingNeedsFromMargin = livingWithdrawals - cashUsedForLiving;
       const cashAfterLiving = cashBeforeUses - cashUsedForLiving;
       const cashUsedForConversionTax = Math.min(conversionTaxes, cashAfterLiving);
-      const conversionTaxFromStock = conversionTaxes - cashUsedForConversionTax;
-      const grossStockSaleForLiving =
-        effectiveWithdrawalTaxRate >= 1 ? livingNeedsFromStock : livingNeedsFromStock / (1 - effectiveWithdrawalTaxRate);
-      const grossStockSaleForConversionTax =
-        effectiveWithdrawalTaxRate >= 1 ? conversionTaxFromStock : conversionTaxFromStock / (1 - effectiveWithdrawalTaxRate);
-      const stockSalesForLiving = grossStockSaleForLiving;
-      const stockSalesForConversionTax = grossStockSaleForConversionTax;
-      const capitalGainsTaxes =
-        Math.max(0, grossStockSaleForLiving - livingNeedsFromStock) +
-        Math.max(0, grossStockSaleForConversionTax - conversionTaxFromStock);
+      const conversionTaxFromMargin = conversionTaxes - cashUsedForConversionTax;
+      const stockSalesForLiving = 0;
+      const stockSalesForConversionTax = 0;
+      const capitalGainsTaxes = 0;
       const cashAfterConversionTax = cashAfterLiving - cashUsedForConversionTax;
       const cashUsedForBusiness = Math.min(cashAfterConversionTax, brokerageCashUsedForBusiness);
       cashBalance = cashAfterConversionTax - cashUsedForBusiness + distributions + saleProceeds;
-      const investedBalanceBeforeGrowth =
-        beginningInvestedBalance -
-        deployedToCorp -
-        stockSalesForLiving -
-        stockSalesForConversionTax;
+      marginDebt = beginningMarginDebt + livingNeedsFromMargin + conversionTaxFromMargin;
+      const investedBalanceBeforeGrowth = beginningInvestedBalance;
       const investmentReturn = investedBalanceBeforeGrowth * monthlyReturn;
       investedBalance = investedBalanceBeforeGrowth + investmentReturn;
-      const endingBalance = investedBalance + cashBalance;
+      const endingBalance = investedBalance + cashBalance - marginDebt;
 
       return {
         month: index + 1,
@@ -880,23 +877,27 @@ function calculatePersonalModel(businessModel, inputs) {
         beginningBalance,
         beginningInvestedBalance,
         beginningCashBalance,
+        beginningMarginDebt,
         deployedToCorp,
         brokerageCashUsedForBusiness: cashUsedForBusiness,
         conversionTaxes,
         cashUsedForConversionTax,
-        conversionTaxFromStock,
+        conversionTaxFromStock: 0,
+        conversionTaxFromMargin,
         salary,
         distributions,
         saleProceeds,
         livingWithdrawals,
         cashUsedForLiving,
-        livingNeedsFromStock,
+        livingNeedsFromStock: 0,
+        livingNeedsFromMargin,
         stockSalesForLiving,
         stockSalesForConversionTax,
         capitalGainsTaxes,
         investmentReturn,
         endingInvestedBalance: investedBalance,
         endingCashBalance: cashBalance,
+        endingMarginDebt: marginDebt,
         endingBalance,
       };
     });
@@ -919,18 +920,21 @@ function calculatePersonalModel(businessModel, inputs) {
         conversionTaxes: sum("conversionTaxes"),
         cashUsedForConversionTax: sum("cashUsedForConversionTax"),
         conversionTaxFromStock: sum("conversionTaxFromStock"),
+        conversionTaxFromMargin: sum("conversionTaxFromMargin"),
         salary: sum("salary"),
         distributions: sum("distributions"),
         saleProceeds: sum("saleProceeds"),
         livingWithdrawals: sum("livingWithdrawals"),
         cashUsedForLiving: sum("cashUsedForLiving"),
         livingNeedsFromStock: sum("livingNeedsFromStock"),
+        livingNeedsFromMargin: sum("livingNeedsFromMargin"),
         stockSalesForLiving: sum("stockSalesForLiving"),
         stockSalesForConversionTax: sum("stockSalesForConversionTax"),
         capitalGainsTaxes: sum("capitalGainsTaxes"),
         investmentReturn: sum("investmentReturn"),
         endingInvestedBalance: end?.endingInvestedBalance ?? 0,
         endingCashBalance: end?.endingCashBalance ?? 0,
+        endingMarginDebt: end?.endingMarginDebt ?? 0,
         endingBalance: end?.endingBalance ?? 0,
       };
     });
@@ -960,6 +964,7 @@ function calculatePersonalModel(businessModel, inputs) {
     endingBalance: baseScenario.endingBalance,
     endingInvestedBalance: baseScenario.months.at(-1)?.endingInvestedBalance ?? 0,
     endingCashBalance: baseScenario.months.at(-1)?.endingCashBalance ?? 0,
+    endingMarginDebt: baseScenario.months.at(-1)?.endingMarginDebt ?? 0,
     monthlyReturn: baseScenario.monthlyReturn,
     monthlySpending: startingMonthlySpending,
     startingMonthlySpending,
@@ -1881,6 +1886,8 @@ function CashDashboard({ personalModel, sourceStructure = "robs" }) {
   const totalCashForLiving = personalModel.months.reduce((total, month) => total + month.cashUsedForLiving, 0);
   const totalCashForConversionTax = personalModel.months.reduce((total, month) => total + month.cashUsedForConversionTax, 0);
   const totalCashForGyms = personalModel.months.reduce((total, month) => total + month.brokerageCashUsedForBusiness, 0);
+  const totalMarginBorrowing =
+    personalModel.months.reduce((total, month) => total + month.livingNeedsFromMargin + month.conversionTaxFromMargin, 0);
   const endingCash = personalModel.months.at(-1)?.endingCashBalance ?? 0;
 
   return (
@@ -1918,6 +1925,11 @@ function CashDashboard({ personalModel, sourceStructure = "robs" }) {
             </small>
           </article>
           <article>
+            <span>Margin Borrowing</span>
+            <strong>{money.format(totalMarginBorrowing)}</strong>
+            <small>Personal living needs and conversion tax shortfalls</small>
+          </article>
+          <article>
             <span>Ending Cash</span>
             <strong>{money.format(endingCash)}</strong>
             <small>Remaining cash balance</small>
@@ -1941,9 +1953,11 @@ function CashDashboard({ personalModel, sourceStructure = "robs" }) {
                 <th>Sale Proceeds</th>
                 <th>Living Needs</th>
                 <th>Cash For Living</th>
-                <th>VOO For Living</th>
+                <th>Margin For Living</th>
                 <th>Cash For Conversion Tax</th>
+                <th>Margin For Conversion Tax</th>
                 <th>Cash Used For Gyms</th>
+                <th>Margin Debt</th>
                 <th>Ending Cash</th>
               </tr>
             </thead>
@@ -1959,9 +1973,11 @@ function CashDashboard({ personalModel, sourceStructure = "robs" }) {
                   <td>{money.format(month.saleProceeds)}</td>
                   <td>{money.format(month.livingWithdrawals)}</td>
                   <td>{money.format(month.cashUsedForLiving)}</td>
-                  <td>{money.format(month.livingNeedsFromStock)}</td>
+                  <td>{money.format(month.livingNeedsFromMargin)}</td>
                   <td>{money.format(month.cashUsedForConversionTax)}</td>
+                  <td>{money.format(month.conversionTaxFromMargin)}</td>
                   <td>{money.format(month.brokerageCashUsedForBusiness)}</td>
+                  <td>{money.format(month.endingMarginDebt)}</td>
                   <td className={month.endingCashBalance < 0 ? "negative" : "positive"}>
                     {money.format(month.endingCashBalance)}
                   </td>
@@ -2028,22 +2044,22 @@ function PersonalInputsPanel({ inputs, updateInput, personalModel }) {
             />
           </label>
           <p className="emptyState">
-            VOO is modeled as invested capital. Cash is modeled separately in the Cash tab. Return scenarios are shared
-            from Personal Wealth &gt; Planning.
+            VOO stays invested. Cash is modeled separately in the Cash tab, and personal shortfalls are funded with
+            margin debt instead of stock sales.
           </p>
         </div>
       </section>
       <section className="assumptionGroup">
         <button className="groupToggle" type="button">
-          Projection
+          After-Tax Reference
         </button>
         <div className="groupFields">
           <div className="rollupLocationRow">
-            <strong>Gain share sold</strong>
+            <strong>Embedded gain share</strong>
             <span>{pct.format(personalModel.taxableGainShare)}</span>
           </div>
           <div className="rollupLocationRow">
-            <strong>Effective sale tax</strong>
+            <strong>Liquidation tax estimate</strong>
             <span>{pct.format(personalModel.effectiveWithdrawalTaxRate)}</span>
           </div>
           <div className="rollupLocationRow">
@@ -2059,8 +2075,8 @@ function PersonalInputsPanel({ inputs, updateInput, personalModel }) {
 function PersonalDashboard({ personalModel, sourceStructure = "robs-stock" }) {
   const businessContributionLabel = "C-Corp Contribution";
   const sourceLabel = getWealthSourceLabel(sourceStructure);
-  const totalCapitalGainsTaxes = personalModel.months.reduce((total, month) => total + month.capitalGainsTaxes, 0);
   const totalConversionTaxes = personalModel.months.reduce((total, month) => total + month.conversionTaxes, 0);
+  const endingMarginDebt = personalModel.months.at(-1)?.endingMarginDebt ?? 0;
   const totalGrowth = personalModel.months.reduce((total, month) => total + month.investmentReturn, 0);
   const vooScenarios = personalModel.scenarios.map((scenario) => ({
     ...scenario,
@@ -2091,11 +2107,11 @@ function PersonalDashboard({ personalModel, sourceStructure = "robs-stock" }) {
 	            <span>Ending VOO</span>
 	            <strong>{money.format(personalModel.months.at(-1)?.endingInvestedBalance ?? 0)}</strong>
 	            <small>{money.format(totalGrowth)} investment growth</small>
-	          </article>
+          </article>
           <article>
-            <span>Cap Gains Taxes</span>
-            <strong>{money.format(totalCapitalGainsTaxes)}</strong>
-            <small>Tax from VOO sales for living needs</small>
+            <span>Margin Debt</span>
+            <strong>{money.format(endingMarginDebt)}</strong>
+            <small>Personal shortfalls funded without selling VOO</small>
           </article>
           <article>
             <span>ROBS Conversion Tax</span>
@@ -2126,10 +2142,9 @@ function PersonalDashboard({ personalModel, sourceStructure = "robs-stock" }) {
 		                <th>Beginning VOO</th>
 		                <th>{businessContributionLabel}</th>
 		                <th>ROBS Conversion Tax</th>
-		                <th>VOO For Living</th>
-		                <th>VOO For Conversion Tax</th>
-		                <th>Stock Sold</th>
-	                <th>Cap Gains Tax</th>
+		                <th>Margin For Living</th>
+		                <th>Margin For Conversion Tax</th>
+		                <th>Margin Debt</th>
 		                <th>Investment Growth</th>
 		                <th>Ending VOO</th>
 	              </tr>
@@ -2143,10 +2158,9 @@ function PersonalDashboard({ personalModel, sourceStructure = "robs-stock" }) {
 		                  <td>{money.format(month.beginningInvestedBalance)}</td>
 		                  <td>{money.format(month.deployedToCorp)}</td>
 		                  <td>{money.format(month.conversionTaxes)}</td>
-		                  <td>{money.format(month.livingNeedsFromStock)}</td>
-		                  <td>{money.format(month.conversionTaxFromStock)}</td>
-		                  <td>{money.format(month.stockSalesForLiving + month.stockSalesForConversionTax)}</td>
-		                  <td>{money.format(month.capitalGainsTaxes)}</td>
+		                  <td>{money.format(month.livingNeedsFromMargin)}</td>
+		                  <td>{money.format(month.conversionTaxFromMargin)}</td>
+		                  <td>{money.format(month.endingMarginDebt)}</td>
 		                  <td>{money.format(month.investmentReturn)}</td>
 		                  <td>{money.format(month.endingInvestedBalance)}</td>
 	                </tr>
@@ -2233,13 +2247,15 @@ function WealthOverviewDashboard({
   const structureAccountLabel = "ROBS Roth 401k";
   const endingPersonalVoo = personalModel.endingInvestedBalance ?? 0;
   const endingPersonalCash = personalModel.endingCashBalance ?? 0;
-  const totalWealth = structureAccountModel.endingBalance + endingPersonalVoo + endingPersonalCash;
+  const endingPersonalMarginDebt = personalModel.endingMarginDebt ?? 0;
+  const totalWealth = structureAccountModel.endingBalance + endingPersonalVoo + endingPersonalCash - endingPersonalMarginDebt;
   const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
   const endingBalanceFor = (model, key) =>
     model.scenarios.find((scenario) => scenario.key === key)?.endingBalance ?? model.endingBalance;
   const personalScenarioFor = (key) => personalModel.scenarios.find((scenario) => scenario.key === key) ?? personalModel.scenarios[0];
   const personalVooFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingInvestedBalance ?? endingPersonalVoo;
   const personalCashFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingCashBalance ?? endingPersonalCash;
+  const personalMarginDebtFor = (key) => personalScenarioFor(key)?.months.at(-1)?.endingMarginDebt ?? endingPersonalMarginDebt;
   const structureAccountAfterTaxFor = (key) => {
     const value = endingBalanceFor(structureAccountModel, key);
     return value;
@@ -2247,14 +2263,16 @@ function WealthOverviewDashboard({
   const scenarioAfterTaxTotal = (key) =>
     personalCashFor(key) +
     afterTaxBrokerage(personalVooFor(key)) +
-    structureAccountAfterTaxFor(key);
+    structureAccountAfterTaxFor(key) -
+    personalMarginDebtFor(key);
   const rangeLabel = (model) =>
     `${money.format(endingBalanceFor(model, "downside"))} to ${money.format(endingBalanceFor(model, "upside"))}`;
   const personalCashRange = `${money.format(personalCashFor("downside"))} to ${money.format(personalCashFor("upside"))}`;
   const personalVooRange = `${money.format(personalVooFor("downside"))} to ${money.format(personalVooFor("upside"))}`;
+  const marginDebtRange = `${money.format(personalMarginDebtFor("downside"))} to ${money.format(personalMarginDebtFor("upside"))}`;
   const afterTaxPersonalVoo = afterTaxBrokerage(endingPersonalVoo);
   const structureAccountAfterTax = structureAccountAfterTaxFor("base");
-  const afterTaxWealth = endingPersonalCash + afterTaxPersonalVoo + structureAccountAfterTax;
+  const afterTaxWealth = endingPersonalCash + afterTaxPersonalVoo + structureAccountAfterTax - endingPersonalMarginDebt;
   const afterTaxRange = `${money.format(scenarioAfterTaxTotal("downside"))} to ${money.format(
     scenarioAfterTaxTotal("upside"),
   )}`;
@@ -2273,9 +2291,11 @@ function WealthOverviewDashboard({
     const structureMonth = structureAccountModel.months[index] ?? {};
     const businessMonth = businessByMonth.get(toMonthKey(personalMonth.date));
     const businessDebtBalance = businessMonth?.debtBalance ?? 0;
-    const brokerageCollateralValue = Math.max(0, personalMonth.endingBalance);
-    const portfolioLoanLtv = brokerageCollateralValue > 0 ? businessDebtBalance / brokerageCollateralValue : businessDebtBalance > 0 ? Infinity : 0;
-    const ltvHeadroom = brokerageCollateralValue * portfolioLoanLtvLimit - businessDebtBalance;
+    const marginDebtBalance = personalMonth.endingMarginDebt ?? 0;
+    const totalPortfolioDebt = businessDebtBalance + marginDebtBalance;
+    const brokerageCollateralValue = Math.max(0, (personalMonth.endingInvestedBalance ?? 0) + (personalMonth.endingCashBalance ?? 0));
+    const portfolioLoanLtv = brokerageCollateralValue > 0 ? totalPortfolioDebt / brokerageCollateralValue : totalPortfolioDebt > 0 ? Infinity : 0;
+    const ltvHeadroom = brokerageCollateralValue * portfolioLoanLtvLimit - totalPortfolioDebt;
     const beginningWealth = personalMonth.beginningBalance + (structureMonth.beginningBalance ?? 0);
     const accountDeployments =
       personalMonth.deployedToCorp + personalMonth.brokerageCashUsedForBusiness + (structureMonth.deployedToCorp ?? 0);
@@ -2307,6 +2327,8 @@ function WealthOverviewDashboard({
       endingWealth,
       afterTaxEndingWealth,
       businessDebtBalance,
+      marginDebtBalance,
+      totalPortfolioDebt,
       brokerageCollateralValue,
       portfolioLoanLtv,
       ltvHeadroom,
@@ -2336,6 +2358,8 @@ function WealthOverviewDashboard({
         endingWealth: last?.endingWealth ?? 0,
         afterTaxEndingWealth: last?.afterTaxEndingWealth ?? 0,
         businessDebtBalance: last?.businessDebtBalance ?? 0,
+        marginDebtBalance: last?.marginDebtBalance ?? 0,
+        totalPortfolioDebt: last?.totalPortfolioDebt ?? 0,
         brokerageCollateralValue: last?.brokerageCollateralValue ?? 0,
         portfolioLoanLtv: last?.portfolioLoanLtv ?? 0,
         peakPortfolioLoanLtv: rows.reduce((peak, row) => Math.max(peak, Number.isFinite(row.portfolioLoanLtv) ? row.portfolioLoanLtv : Infinity), 0),
@@ -2416,6 +2440,12 @@ function WealthOverviewDashboard({
             <small>{personalVooRange}</small>
           </div>
           <div>
+            <span>Margin Debt</span>
+            <strong>{money.format(endingPersonalMarginDebt)}</strong>
+            <strong>{money.format(endingPersonalMarginDebt)}</strong>
+            <small>{marginDebtRange}</small>
+          </div>
+          <div>
             <span>{structureAccountLabel}</span>
             <strong>{money.format(structureAccountModel.endingBalance)}</strong>
             <strong>{money.format(structureAccountAfterTax)}</strong>
@@ -2451,6 +2481,8 @@ function WealthOverviewDashboard({
                 <th>Personal Taxes</th>
                 <th>Investment Growth</th>
                 <th>Business Debt</th>
+                <th>Margin Debt</th>
+                <th>Total Portfolio Debt</th>
                 <th>Brokerage Collateral</th>
                 <th>Portfolio LTV</th>
                 <th>LTV Headroom</th>
@@ -2470,6 +2502,8 @@ function WealthOverviewDashboard({
                   <td>{money.format(row.personalTaxes)}</td>
                   <td>{money.format(row.investmentGrowth)}</td>
                   <td>{money.format(row.businessDebtBalance)}</td>
+                  <td>{money.format(row.marginDebtBalance)}</td>
+                  <td>{money.format(row.totalPortfolioDebt)}</td>
                   <td>{money.format(row.brokerageCollateralValue)}</td>
                   <td className={ltvStatusClass(row.portfolioLoanLtv)}>{pct.format(row.portfolioLoanLtv)}</td>
                   <td className={row.ltvHeadroom < 0 ? "negative" : "positive"}>{money.format(row.ltvHeadroom)}</td>
@@ -2501,6 +2535,8 @@ function WealthOverviewDashboard({
                 <th>Personal Taxes</th>
                 <th>Investment Growth</th>
                 <th>Business Debt</th>
+                <th>Margin Debt</th>
+                <th>Total Portfolio Debt</th>
                 <th>Brokerage Collateral</th>
                 <th>Portfolio LTV</th>
                 <th>LTV Headroom</th>
@@ -2521,6 +2557,8 @@ function WealthOverviewDashboard({
                   <td>{money.format(row.personalTaxes)}</td>
                   <td>{money.format(row.investmentGrowth)}</td>
                   <td>{money.format(row.businessDebtBalance)}</td>
+                  <td>{money.format(row.marginDebtBalance)}</td>
+                  <td>{money.format(row.totalPortfolioDebt)}</td>
                   <td>{money.format(row.brokerageCollateralValue)}</td>
                   <td className={ltvStatusClass(row.portfolioLoanLtv)}>{pct.format(row.portfolioLoanLtv)}</td>
                   <td className={row.ltvHeadroom < 0 ? "negative" : "positive"}>{money.format(row.ltvHeadroom)}</td>
