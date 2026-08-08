@@ -6,14 +6,6 @@ export function Dashboard({ model, locationMeta }) {
   const [expandedYear, setExpandedYear] = useState(null);
   const [activeStatement, setActiveStatement] = useState("income");
 
-  const monthsByYear = model.months.reduce((groups, month) => {
-    const year = Number(String(month.date).slice(0, 4));
-    const yearMonths = groups.get(year) ?? [];
-    yearMonths.push(month);
-    groups.set(year, yearMonths);
-    return groups;
-  }, new Map());
-
   function toggleYear(year) {
     setExpandedYear((current) => (current === year ? null : year));
   }
@@ -54,11 +46,36 @@ export function Dashboard({ model, locationMeta }) {
         ["valuationNetProceeds", "Net Proceeds", "money"],
       ],
     },
+    personalWealth: {
+      title: "Personal Wealth",
+      rowsKey: "personalWealth",
+      columns: [
+        ["cash", "Cash", "money"],
+        ["taxableBrokerage", "Taxable Brokerage", "money"],
+        ["rothIra", "Roth IRA", "money"],
+        ["robsRoth401k", "ROBS Roth 401k", "money"],
+        ["totalWealth", "Total Wealth", "money"],
+        ["afterTaxWealth", "After-Tax Wealth", "money"],
+        ["withdrawalCapacity", "Withdrawal Capacity", "money"],
+        ["businessDebt", "Business Debt", "money"],
+        ["portfolioLtv", "Portfolio LTV", "percent"],
+      ],
+    },
   };
   const activeConfig = statements[activeStatement];
+  const activeRows = activeConfig.rowsKey ? model[activeConfig.rowsKey]?.years ?? [] : model.years;
+  const activeMonths = activeConfig.rowsKey ? model[activeConfig.rowsKey]?.months ?? [] : model.months;
+  const monthsByYear = activeMonths.reduce((groups, month) => {
+    const year = Number(String(month.date).slice(0, 4));
+    const yearMonths = groups.get(year) ?? [];
+    yearMonths.push(month);
+    groups.set(year, yearMonths);
+    return groups;
+  }, new Map());
 
   function formatCell(row, key, type) {
     const value = key === "cashChange" ? (row.endingCash ?? 0) - (row.beginningCash ?? 0) : getRowValue(row, key);
+    if (!Number.isFinite(value)) return "n/a";
     if (type === "percent") return pct.format(value);
     return money.format(value);
   }
@@ -74,12 +91,18 @@ export function Dashboard({ model, locationMeta }) {
         "valuationEnterpriseValue",
         "valuationEquityValue",
         "valuationNetProceeds",
+        "totalWealth",
+        "afterTaxWealth",
+        "withdrawalCapacity",
         "cashChange",
         "endingCash",
+        "businessDebt",
+        "portfolioLtv",
       ].includes(key)
     ) {
       return "";
     }
+    if (!Number.isFinite(value)) return "negative";
     return value < 0 ? "negative" : "positive";
   }
 
@@ -165,7 +188,7 @@ export function Dashboard({ model, locationMeta }) {
               </tr>
             </thead>
             <tbody>
-              {model.years.map((m) => {
+              {activeRows.map((m) => {
                 const isExpanded = expandedYear === m.year;
                 return (
                   <Fragment key={m.year}>

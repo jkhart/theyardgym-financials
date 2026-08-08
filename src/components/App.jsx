@@ -830,6 +830,64 @@ function calculateTraditionalIraModel(inputs) {
   });
 }
 
+function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs, personalModel, rothIraModel }) {
+  const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
+  const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
+  const safeWithdrawalRate = Number(inputs.safeWithdrawalRate) || 0;
+
+  const months = personalModel.months.map((personalMonth, index) => {
+    const rothIraMonth = rothIraModel.months[index] ?? {};
+    const companyRothMonth = companyRothModel.months[index] ?? {};
+    const businessMonth = businessByMonth.get(toMonthKey(personalMonth.date));
+    const cash = personalMonth.endingCashBalance ?? 0;
+    const taxableBrokerage = personalMonth.endingInvestedBalance ?? 0;
+    const rothIra = rothIraMonth.endingBalance ?? 0;
+    const robsRoth401k = companyRothMonth.endingBalance ?? 0;
+    const totalWealth = cash + taxableBrokerage + rothIra + robsRoth401k;
+    const afterTaxWealth = cash + afterTaxBrokerage(taxableBrokerage) + rothIra + robsRoth401k;
+    const withdrawalCapacity = afterTaxWealth * safeWithdrawalRate;
+    const businessDebt = businessMonth?.debtBalance ?? 0;
+    const brokerageCollateral = Math.max(0, personalMonth.endingBalance ?? cash + taxableBrokerage);
+    const portfolioLtv = brokerageCollateral > 0 ? businessDebt / brokerageCollateral : businessDebt > 0 ? Infinity : 0;
+
+    return {
+      month: personalMonth.month,
+      date: personalMonth.date,
+      monthLabel: personalMonth.monthLabel,
+      age: personalMonth.age,
+      cash,
+      taxableBrokerage,
+      rothIra,
+      robsRoth401k,
+      totalWealth,
+      afterTaxWealth,
+      withdrawalCapacity,
+      businessDebt,
+      portfolioLtv,
+    };
+  });
+
+  const years = Array.from(
+    months.reduce((groups, row) => {
+      const calendarYear = parseLocalDate(row.date).getFullYear();
+      const group = groups.get(calendarYear) ?? [];
+      group.push(row);
+      groups.set(calendarYear, group);
+      return groups;
+    }, new Map()),
+    ([calendarYear, rows]) => {
+      const last = rows.at(-1);
+      return {
+        ...last,
+        calendarYear,
+        year: calendarYear,
+      };
+    },
+  );
+
+  return { months, years };
+}
+
 function calculatePersonalModel(businessModel, inputs) {
   const startDate = parseLocalDate(inputs.modelStartDate);
   const birthDate = inputs.rothBirthDate || DEFAULT_ROLLUP_INPUTS.rothBirthDate;
@@ -3095,8 +3153,20 @@ export function App() {
   const locationSetModel = useMemo(() => buildLocationSetModel(locations), [locations]);
   const locationFinancialModel = useMemo(() => {
     const rollupModel = calculateRollupModel(locations, rollupInputs);
+    const companyRothModel = calculateRothModel(rollupModel, rollupInputs);
+    const rothIraModel = calculateRothIraModel(rollupInputs);
+    const personalModel = calculatePersonalModel(rollupModel, rollupInputs);
+    const personalWealth = buildPersonalWealthStatement({
+      businessModel: rollupModel,
+      companyRothModel,
+      inputs: rollupInputs,
+      personalModel,
+      rothIraModel,
+    });
+
     return {
       ...rollupModel,
+      personalWealth,
       totalInitialInvestment: locationSetModel.totalInitialInvestment,
       years: rollupModel.years.map((year) => ({
         ...year,
