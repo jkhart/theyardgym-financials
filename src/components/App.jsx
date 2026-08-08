@@ -22,7 +22,6 @@ const DEFAULT_ROLLUP_INPUTS = {
   personalContribution: 0,
   traditionalIraStartingBalance: 450000,
   robsConversionTaxRate: 0.35,
-  rothIraStartingBalance: 500000,
   minimumWorkingCapital: 100000,
   annualOwnerSalary: 100000,
   ownerSalaryInflation: 0.03,
@@ -750,101 +749,19 @@ function calculateRothModel(rollupModel, inputs, options = {}) {
   };
 }
 
-function calculateRothIraModel(inputs) {
-  const startDate = parseLocalDate(inputs.modelStartDate);
-  const birthDate = inputs.rothBirthDate || DEFAULT_ROLLUP_INPUTS.rothBirthDate;
-  const endDate = toDateInputValue(addYears(parseLocalDate(birthDate), 60));
-  const horizonMonths = Math.max(1, monthDiff(inputs.modelStartDate, endDate) + 1);
-  const startingBalance = Number(inputs.rothIraStartingBalance) || 0;
-  const scenarioInputs = [
-    { key: "downside", label: "Downside", annualReturn: Number(inputs.downsideReturn) || 0 },
-    { key: "base", label: "Base", annualReturn: Number(inputs.baseReturn) || 0 },
-    { key: "upside", label: "Upside", annualReturn: Number(inputs.upsideReturn) || 0 },
-  ];
-
-  const projectScenario = (scenario) => {
-    const monthlyReturn = Math.pow(1 + scenario.annualReturn, 1 / 12) - 1;
-    let balance = startingBalance;
-    const months = Array.from({ length: horizonMonths }, (_, index) => {
-      const date = toDateInputValue(addMonths(startDate, index));
-      const beginningBalance = balance;
-      const investmentReturn = beginningBalance * monthlyReturn;
-      balance = beginningBalance + investmentReturn;
-      return {
-        month: index + 1,
-        date,
-        monthLabel: formatMonthLabel(date),
-        age: getAgeAtDate(birthDate, date),
-        beginningBalance,
-        investmentReturn,
-        endingBalance: balance,
-      };
-    });
-
-    const yearGroups = months.reduce((groups, month) => {
-      const calendarYear = parseLocalDate(month.date).getFullYear();
-      const group = groups.get(calendarYear) ?? [];
-      group.push(month);
-      groups.set(calendarYear, group);
-      return groups;
-    }, new Map());
-    const years = Array.from(yearGroups, ([calendarYear, slice]) => {
-      const sum = (key) => slice.reduce((total, row) => total + row[key], 0);
-      const end = slice.at(-1);
-      return {
-        calendarYear,
-        age: end?.age ?? 0,
-        investmentReturn: sum("investmentReturn"),
-        endingBalance: end?.endingBalance ?? 0,
-      };
-    });
-
-    return {
-      ...scenario,
-      monthlyReturn,
-      months,
-      years,
-      endingBalance: months.at(-1)?.endingBalance ?? startingBalance,
-    };
-  };
-
-  const scenarios = scenarioInputs.map(projectScenario);
-  const baseScenario = scenarios.find((scenario) => scenario.key === "base") ?? scenarios[0];
-  return {
-    months: baseScenario.months,
-    years: baseScenario.years,
-    scenarios,
-    endDate,
-    birthDate,
-    ageAtEnd: getAgeAtDate(birthDate, endDate),
-    startingBalance,
-    endingBalance: baseScenario.endingBalance,
-    monthlyReturn: baseScenario.monthlyReturn,
-  };
-}
-
-function calculateTraditionalIraModel(inputs) {
-  return calculateRothIraModel({
-    ...inputs,
-    rothIraStartingBalance: inputs.traditionalIraStartingBalance,
-  });
-}
-
-function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs, personalModel, rothIraModel }) {
+function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs, personalModel }) {
   const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
   const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
   const safeWithdrawalRate = Number(inputs.safeWithdrawalRate) || 0;
 
   const months = personalModel.months.map((personalMonth, index) => {
-    const rothIraMonth = rothIraModel.months[index] ?? {};
     const companyRothMonth = companyRothModel.months[index] ?? {};
     const businessMonth = businessByMonth.get(toMonthKey(personalMonth.date));
     const cash = personalMonth.endingCashBalance ?? 0;
     const taxableBrokerage = personalMonth.endingInvestedBalance ?? 0;
-    const rothIra = rothIraMonth.endingBalance ?? 0;
     const robsRoth401k = companyRothMonth.endingBalance ?? 0;
-    const totalWealth = cash + taxableBrokerage + rothIra + robsRoth401k;
-    const afterTaxWealth = cash + afterTaxBrokerage(taxableBrokerage) + rothIra + robsRoth401k;
+    const totalWealth = cash + taxableBrokerage + robsRoth401k;
+    const afterTaxWealth = cash + afterTaxBrokerage(taxableBrokerage) + robsRoth401k;
     const withdrawalCapacity = afterTaxWealth * safeWithdrawalRate;
     const businessDebt = businessMonth?.debtBalance ?? 0;
     const brokerageCollateral = Math.max(0, personalMonth.endingBalance ?? cash + taxableBrokerage);
@@ -857,7 +774,6 @@ function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs,
       age: personalMonth.age,
       cash,
       taxableBrokerage,
-      rothIra,
       robsRoth401k,
       totalWealth,
       afterTaxWealth,
@@ -1201,15 +1117,6 @@ function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGrou
                 step="1000"
                 value={inputs.personalStartingBalance}
                 onChange={(event) => updateInput("personalStartingBalance", Number(event.target.value))}
-              />
-            </label>
-            <label className="inputRow">
-              <span>Roth IRA</span>
-              <input
-                type="number"
-                step="1000"
-                value={inputs.rothIraStartingBalance}
-                onChange={(event) => updateInput("rothIraStartingBalance", Number(event.target.value))}
               />
             </label>
           </div>
@@ -1936,131 +1843,6 @@ function RothPage({ locations, inputs, updateInput }) {
   );
 }
 
-function RothIraInputsPanel({ inputs, updateInput, rothIraModel }) {
-  return (
-    <aside className="assumptions rollupInputs">
-      <div className="panelTitle">
-        <h2>Roth IRA Inputs</h2>
-      </div>
-      <section className="assumptionGroup">
-        <div className="groupFields">
-          <label className="inputRow">
-            <span>Starting Roth IRA</span>
-            <input
-              type="number"
-              step="1000"
-              value={inputs.rothIraStartingBalance}
-              onChange={(event) => updateInput("rothIraStartingBalance", Number(event.target.value))}
-            />
-          </label>
-          <p className="emptyState">
-            This is your separate existing Roth IRA. It stays outside the ROBS structure and compounds to age 60.
-            Return scenarios are shared from Personal Wealth &gt; Planning.
-          </p>
-        </div>
-      </section>
-      <section className="assumptionGroup">
-        <button className="groupToggle" type="button">
-          Projection
-        </button>
-        <div className="groupFields">
-          <div className="rollupLocationRow">
-            <strong>Base monthly return</strong>
-            <span>{pct.format(rothIraModel.monthlyReturn)}</span>
-          </div>
-        </div>
-      </section>
-    </aside>
-  );
-}
-
-function RothIraDashboard({ rothIraModel }) {
-  const totalGrowth = rothIraModel.months.reduce((total, month) => total + month.investmentReturn, 0);
-
-  return (
-    <section className="dashboard">
-      <div className="locationSnapshot">
-        <div>
-          <p className="eyebrow">Roth IRA</p>
-          <h2>Existing Roth IRA Projection</h2>
-          <p>Through age {num.format(rothIraModel.ageAtEnd)} · {formatMonthLabel(rothIraModel.endDate)}</p>
-        </div>
-        <div className="locationKpis">
-          <article>
-            <span>Starting Balance</span>
-            <strong>{money.format(rothIraModel.startingBalance)}</strong>
-            <small>Existing Roth IRA assets</small>
-          </article>
-          <article>
-            <span>Investment Growth</span>
-            <strong>{money.format(totalGrowth)}</strong>
-            <small>Base case compounded growth</small>
-          </article>
-          <article>
-            <span>Ending Balance</span>
-            <strong>{money.format(rothIraModel.endingBalance)}</strong>
-            <small>Base case through age {num.format(rothIraModel.ageAtEnd)}</small>
-          </article>
-        </div>
-      </div>
-      <section className="annualPanel">
-        <div className="chartHeader">
-          <div className="panelTitle">
-            <h2>Roth IRA Balance Scenarios</h2>
-          </div>
-        </div>
-        <ScenarioLineChart ariaLabel="Existing Roth IRA balance scenarios through age 60" scenarios={rothIraModel.scenarios} />
-      </section>
-      <section className="tablePanel">
-        <div className="panelTitle">
-          <h2>Monthly Roth IRA Model</h2>
-        </div>
-        <div className="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Calendar</th>
-                <th>Age</th>
-                <th>Beginning Balance</th>
-                <th>Investment Growth</th>
-                <th>Ending Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rothIraModel.months.map((month) => (
-                <tr key={month.month}>
-                  <td>{month.month}</td>
-                  <td>{month.monthLabel}</td>
-                  <td>{num.format(month.age)}</td>
-                  <td>{money.format(month.beginningBalance)}</td>
-                  <td>{money.format(month.investmentReturn)}</td>
-                  <td>{money.format(month.endingBalance)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-  );
-}
-
-function RothIraPage({ inputs, updateInput }) {
-  const rothIraModel = useMemo(() => calculateRothIraModel(inputs), [inputs]);
-
-  return (
-    <section className="workspace">
-      <div className="leftRail">
-        <RothIraInputsPanel inputs={inputs} updateInput={updateInput} rothIraModel={rothIraModel} />
-      </div>
-      <div>
-        <RothIraDashboard rothIraModel={rothIraModel} />
-      </div>
-    </section>
-  );
-}
-
 function CashInputsPanel({ inputs, updateInput, personalModel }) {
   return (
     <aside className="assumptions rollupInputs">
@@ -2442,7 +2224,6 @@ function WealthOverviewInputsPanel({ inputs, updateInput }) {
 
 function WealthOverviewDashboard({
   companyRothModel,
-  rothIraModel,
   personalModel,
   businessModel,
   inputs,
@@ -2452,7 +2233,7 @@ function WealthOverviewDashboard({
   const structureAccountLabel = "ROBS Roth 401k";
   const endingPersonalVoo = personalModel.endingInvestedBalance ?? 0;
   const endingPersonalCash = personalModel.endingCashBalance ?? 0;
-  const totalWealth = structureAccountModel.endingBalance + rothIraModel.endingBalance + endingPersonalVoo + endingPersonalCash;
+  const totalWealth = structureAccountModel.endingBalance + endingPersonalVoo + endingPersonalCash;
   const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
   const endingBalanceFor = (model, key) =>
     model.scenarios.find((scenario) => scenario.key === key)?.endingBalance ?? model.endingBalance;
@@ -2466,7 +2247,6 @@ function WealthOverviewDashboard({
   const scenarioAfterTaxTotal = (key) =>
     personalCashFor(key) +
     afterTaxBrokerage(personalVooFor(key)) +
-    endingBalanceFor(rothIraModel, key) +
     structureAccountAfterTaxFor(key);
   const rangeLabel = (model) =>
     `${money.format(endingBalanceFor(model, "downside"))} to ${money.format(endingBalanceFor(model, "upside"))}`;
@@ -2474,7 +2254,7 @@ function WealthOverviewDashboard({
   const personalVooRange = `${money.format(personalVooFor("downside"))} to ${money.format(personalVooFor("upside"))}`;
   const afterTaxPersonalVoo = afterTaxBrokerage(endingPersonalVoo);
   const structureAccountAfterTax = structureAccountAfterTaxFor("base");
-  const afterTaxWealth = endingPersonalCash + afterTaxPersonalVoo + rothIraModel.endingBalance + structureAccountAfterTax;
+  const afterTaxWealth = endingPersonalCash + afterTaxPersonalVoo + structureAccountAfterTax;
   const afterTaxRange = `${money.format(scenarioAfterTaxTotal("downside"))} to ${money.format(
     scenarioAfterTaxTotal("upside"),
   )}`;
@@ -2490,15 +2270,13 @@ function WealthOverviewDashboard({
     return value;
   };
   const monthlyWealthRows = personalModel.months.map((personalMonth, index) => {
-    const rothIraMonth = rothIraModel.months[index] ?? {};
     const structureMonth = structureAccountModel.months[index] ?? {};
     const businessMonth = businessByMonth.get(toMonthKey(personalMonth.date));
     const businessDebtBalance = businessMonth?.debtBalance ?? 0;
     const brokerageCollateralValue = Math.max(0, personalMonth.endingBalance);
     const portfolioLoanLtv = brokerageCollateralValue > 0 ? businessDebtBalance / brokerageCollateralValue : businessDebtBalance > 0 ? Infinity : 0;
     const ltvHeadroom = brokerageCollateralValue * portfolioLoanLtvLimit - businessDebtBalance;
-    const beginningWealth =
-      personalMonth.beginningBalance + (rothIraMonth.beginningBalance ?? 0) + (structureMonth.beginningBalance ?? 0);
+    const beginningWealth = personalMonth.beginningBalance + (structureMonth.beginningBalance ?? 0);
     const accountDeployments =
       personalMonth.deployedToCorp + personalMonth.brokerageCashUsedForBusiness + (structureMonth.deployedToCorp ?? 0);
     const businessCashIn =
@@ -2508,14 +2286,11 @@ function WealthOverviewDashboard({
       (structureMonth.distributions ?? 0) +
       (structureMonth.saleProceeds ?? 0);
     const personalTaxes = personalMonth.capitalGainsTaxes + personalMonth.conversionTaxes;
-    const investmentGrowth =
-      personalMonth.investmentReturn + (rothIraMonth.investmentReturn ?? 0) + (structureMonth.investmentReturn ?? 0);
-    const endingWealth =
-      personalMonth.endingBalance + (rothIraMonth.endingBalance ?? 0) + (structureMonth.endingBalance ?? 0);
+    const investmentGrowth = personalMonth.investmentReturn + (structureMonth.investmentReturn ?? 0);
+    const endingWealth = personalMonth.endingBalance + (structureMonth.endingBalance ?? 0);
     const afterTaxEndingWealth =
       (personalMonth.endingCashBalance ?? 0) +
       afterTaxBrokerage(personalMonth.endingInvestedBalance ?? 0) +
-      (rothIraMonth.endingBalance ?? 0) +
       afterTaxStructureAccount(structureMonth.endingBalance ?? 0);
 
     return {
@@ -2639,12 +2414,6 @@ function WealthOverviewDashboard({
             <strong>{money.format(endingPersonalVoo)}</strong>
             <strong>{money.format(afterTaxPersonalVoo)}</strong>
             <small>{personalVooRange}</small>
-          </div>
-          <div>
-            <span>Roth IRA</span>
-            <strong>{money.format(rothIraModel.endingBalance)}</strong>
-            <strong>{money.format(rothIraModel.endingBalance)}</strong>
-            <small>{rangeLabel(rothIraModel)}</small>
           </div>
           <div>
             <span>{structureAccountLabel}</span>
@@ -2774,7 +2543,6 @@ function WealthOverview({ locations, inputs, updateInput }) {
   const saleType = getRobsSaleTypeForSource(sourceStructure);
   const rollupModel = useMemo(() => calculateRollupModel(locations, inputs, { saleType }), [locations, inputs, saleType]);
   const companyRothModel = useMemo(() => calculateRothModel(rollupModel, inputs), [rollupModel, inputs]);
-  const rothIraModel = useMemo(() => calculateRothIraModel(inputs), [inputs]);
   const personalModel = useMemo(
     () => calculatePersonalModel(rollupModel, inputs),
     [rollupModel, inputs],
@@ -2788,7 +2556,6 @@ function WealthOverview({ locations, inputs, updateInput }) {
       <div>
         <WealthOverviewDashboard
           companyRothModel={companyRothModel}
-          rothIraModel={rothIraModel}
           personalModel={personalModel}
           businessModel={rollupModel}
           inputs={inputs}
@@ -3096,7 +2863,6 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
     { key: "overview", label: "Overview" },
     { key: "cash", label: "Cash" },
     { key: "brokerage", label: "Personal Brokerage" },
-    { key: "rothIra", label: "Roth IRA" },
     { key: "roth401k", label: "ROBS Roth 401k" },
     { key: "ira", label: "IRA" },
   ];
@@ -3117,8 +2883,6 @@ function WealthPage({ activeSubView, setActiveSubView, locations, inputs, update
           <CashPage locations={locations} inputs={inputs} updateInput={updateInput} />
         ) : activeSubView === "brokerage" ? (
           <PersonalPage locations={locations} inputs={inputs} updateInput={updateInput} />
-        ) : activeSubView === "rothIra" ? (
-          <RothIraPage inputs={inputs} updateInput={updateInput} />
         ) : activeSubView === "roth401k" ? (
           <RothPage locations={locations} inputs={inputs} updateInput={updateInput} />
         ) : activeSubView === "ira" ? (
@@ -3154,14 +2918,12 @@ export function App() {
   const locationFinancialModel = useMemo(() => {
     const rollupModel = calculateRollupModel(locations, rollupInputs);
     const companyRothModel = calculateRothModel(rollupModel, rollupInputs);
-    const rothIraModel = calculateRothIraModel(rollupInputs);
     const personalModel = calculatePersonalModel(rollupModel, rollupInputs);
     const personalWealth = buildPersonalWealthStatement({
       businessModel: rollupModel,
       companyRothModel,
       inputs: rollupInputs,
       personalModel,
-      rothIraModel,
     });
 
     return {
