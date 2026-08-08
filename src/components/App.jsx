@@ -44,7 +44,7 @@ const DEFAULT_ROLLUP_INPUTS = {
   personalAnnualSpending: 180000,
   householdSpendingInflation: 0.03,
   personalCapitalGainsTaxRate: 0.25,
-  personalStockAppreciation: 1,
+  personalCostBasis: 1500000,
   personalDownsideReturn: 0.06,
   personalAnnualReturn: 0.1,
   personalUpsideReturn: 0.12,
@@ -749,9 +749,13 @@ function calculateRothModel(rollupModel, inputs, options = {}) {
   };
 }
 
+function getAfterTaxBrokerageValue(value, personalModel) {
+  const taxableGain = Math.max(0, value - (personalModel.costBasis ?? 0));
+  return value - taxableGain * (personalModel.capitalGainsTaxRate ?? 0);
+}
+
 function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs, personalModel }) {
   const businessByMonth = new Map(businessModel.months.map((month) => [toMonthKey(month.date), month]));
-  const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
   const safeWithdrawalRate = Number(inputs.safeWithdrawalRate) || 0;
 
   const months = personalModel.months.map((personalMonth, index) => {
@@ -762,7 +766,7 @@ function buildPersonalWealthStatement({ businessModel, companyRothModel, inputs,
     const marginDebt = personalMonth.endingMarginDebt ?? 0;
     const robsRoth401k = companyRothMonth.endingBalance ?? 0;
     const totalWealth = cash + taxableBrokerage + robsRoth401k - marginDebt;
-    const afterTaxWealth = cash + afterTaxBrokerage(taxableBrokerage) + robsRoth401k - marginDebt;
+    const afterTaxWealth = cash + getAfterTaxBrokerageValue(taxableBrokerage, personalModel) + robsRoth401k - marginDebt;
     const withdrawalCapacity = afterTaxWealth * safeWithdrawalRate;
     const businessDebt = businessMonth?.debtBalance ?? 0;
     const totalPortfolioDebt = businessDebt + marginDebt;
@@ -819,8 +823,8 @@ function calculatePersonalModel(businessModel, inputs) {
   const startingMonthlySpending = (Number(inputs.personalAnnualSpending) || 0) / 12;
   const householdSpendingInflation = Number(inputs.householdSpendingInflation) || 0;
   const capitalGainsTaxRate = Number(inputs.personalCapitalGainsTaxRate) || 0;
-  const stockAppreciation = Math.max(0, Number(inputs.personalStockAppreciation) || 0);
-  const taxableGainShare = stockAppreciation / (1 + stockAppreciation);
+  const costBasis = Math.max(0, Number(inputs.personalCostBasis) || 0);
+  const taxableGainShare = startingInvestedBalance > 0 ? Math.max(0, startingInvestedBalance - costBasis) / startingInvestedBalance : 0;
   const effectiveWithdrawalTaxRate = taxableGainShare * capitalGainsTaxRate;
   const businessContribution = Number(inputs.personalContribution) || 0;
   const robsConversionTax =
@@ -972,7 +976,7 @@ function calculatePersonalModel(businessModel, inputs) {
     endingAnnualSpending: endingMonthlySpending * 12,
     householdSpendingInflation,
     capitalGainsTaxRate,
-    stockAppreciation,
+    costBasis,
     taxableGainShare,
     effectiveWithdrawalTaxRate,
     robsConversionTax,
@@ -1172,10 +1176,12 @@ function PersonalWealthInputsPanel({ inputs, updateInput, openGroup, setOpenGrou
               />
             </label>
             <label className="inputRow">
-              <span>Stock appreciation</span>
-              <PercentInput
-                value={inputs.personalStockAppreciation}
-                onChange={(value) => updateInput("personalStockAppreciation", value)}
+              <span>VOO cost basis</span>
+              <input
+                type="number"
+                step="1000"
+                value={inputs.personalCostBasis}
+                onChange={(event) => updateInput("personalCostBasis", Number(event.target.value))}
               />
             </label>
           </div>
@@ -2037,10 +2043,12 @@ function PersonalInputsPanel({ inputs, updateInput, personalModel }) {
             />
           </label>
           <label className="inputRow">
-            <span>Stock appreciation</span>
-            <PercentInput
-              value={inputs.personalStockAppreciation}
-              onChange={(value) => updateInput("personalStockAppreciation", value)}
+            <span>VOO cost basis</span>
+            <input
+              type="number"
+              step="1000"
+              value={inputs.personalCostBasis}
+              onChange={(event) => updateInput("personalCostBasis", Number(event.target.value))}
             />
           </label>
           <p className="emptyState">
@@ -2059,8 +2067,8 @@ function PersonalInputsPanel({ inputs, updateInput, personalModel }) {
             <span>{pct.format(personalModel.taxableGainShare)}</span>
           </div>
           <div className="rollupLocationRow">
-            <strong>Liquidation tax estimate</strong>
-            <span>{pct.format(personalModel.effectiveWithdrawalTaxRate)}</span>
+            <strong>Cost basis</strong>
+            <span>{money.format(personalModel.costBasis)}</span>
           </div>
           <div className="rollupLocationRow">
             <strong>Base monthly return</strong>
@@ -2252,7 +2260,7 @@ function WealthOverviewDashboard({
   const endingBusinessDebt = businessByMonth.get(toMonthKey(personalModel.months.at(-1)?.date))?.debtBalance ?? 0;
   const endingPortfolioDebt = endingPersonalMarginDebt + endingBusinessDebt;
   const totalWealth = structureAccountModel.endingBalance + endingPersonalVoo + endingPersonalCash - endingPersonalMarginDebt;
-  const afterTaxBrokerage = (value) => value - Math.max(0, value) * personalModel.effectiveWithdrawalTaxRate;
+  const afterTaxBrokerage = (value) => getAfterTaxBrokerageValue(value, personalModel);
   const endingBalanceFor = (model, key) =>
     model.scenarios.find((scenario) => scenario.key === key)?.endingBalance ?? model.endingBalance;
   const personalScenarioFor = (key) => personalModel.scenarios.find((scenario) => scenario.key === key) ?? personalModel.scenarios[0];
