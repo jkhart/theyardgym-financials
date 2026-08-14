@@ -699,6 +699,62 @@ footer {
   gap: 16px;
 }
 
+.reportSelector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  border: 1px solid #d8d2c8;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 10px 12px;
+}
+
+.reportSelector span,
+.reportSelector strong {
+  display: block;
+}
+
+.reportSelector > div:first-child span {
+  color: #687076;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reportSelector > div:first-child strong {
+  margin-top: 2px;
+  font-size: 0.9rem;
+}
+
+.reportSelectorControls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.reportSelectorControls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  border: 1px solid #d8d2c8;
+  border-radius: 7px;
+  padding: 0 9px;
+  background: #faf7ef;
+  color: #41484e;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.reportSelectorControls input {
+  width: 14px;
+  height: 14px;
+  accent-color: #1f776d;
+}
+
 .profitChartWrap {
   margin-top: 14px;
   max-width: 100%;

@@ -2898,6 +2898,51 @@ function ExitScenarioPage({ locations, inputs, updateInput }) {
   );
 }
 
+function LocationReportSelector({ locations, selectedLocationIds, setSelectedLocationIds }) {
+  const allSelected = selectedLocationIds.length === locations.length;
+  const selectedCount = selectedLocationIds.length;
+
+  function toggleAll() {
+    setSelectedLocationIds(allSelected ? [locations[0]?.id].filter(Boolean) : locations.map((location) => location.id));
+  }
+
+  function toggleLocation(locationId) {
+    setSelectedLocationIds((current) => {
+      if (current.includes(locationId)) {
+        return current.length > 1 ? current.filter((id) => id !== locationId) : current;
+      }
+      return [...current, locationId];
+    });
+  }
+
+  return (
+    <section className="reportSelector" aria-label="Report locations">
+      <div>
+        <span>Report locations</span>
+        <strong>
+          {allSelected ? "All locations" : `${selectedCount} of ${locations.length} locations`}
+        </strong>
+      </div>
+      <div className="reportSelectorControls">
+        <label>
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+          <span>All</span>
+        </label>
+        {locations.map((location) => (
+          <label key={location.id}>
+            <input
+              type="checkbox"
+              checked={selectedLocationIds.includes(location.id)}
+              onChange={() => toggleLocation(location.id)}
+            />
+            <span>{location.locationName}</span>
+          </label>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function WealthPage({ activeSubView, setActiveSubView, locations, inputs, updateInput }) {
   const sourceStructure = getWealthSource(inputs.wealthSourceStructure);
   const tabs = [
@@ -2944,6 +2989,9 @@ export function App() {
   const [locationSchedule, setLocationSchedule] = useState(loadLocationSchedule);
   const [activeView, setActiveView] = useState("location");
   const [activeWealthView, setActiveWealthView] = useState("overview");
+  const [selectedReportLocationIds, setSelectedReportLocationIds] = useState(() =>
+    FIXED_LOCATIONS.map((location) => location.id),
+  );
   const [rollupInputs, setRollupInputs] = useState(loadRollupInputs);
   const locations = useMemo(
     () =>
@@ -2955,9 +3003,13 @@ export function App() {
       }),
     [assumptions, locationSchedule, rollupInputs.modelStartDate, rollupInputs.saleDate],
   );
-  const locationSetModel = useMemo(() => buildLocationSetModel(locations), [locations]);
+  const reportLocations = useMemo(() => {
+    const selected = locations.filter((location) => selectedReportLocationIds.includes(location.id));
+    return selected.length > 0 ? selected : locations;
+  }, [locations, selectedReportLocationIds]);
+  const reportLocationSetModel = useMemo(() => buildLocationSetModel(reportLocations), [reportLocations]);
   const locationFinancialModel = useMemo(() => {
-    const rollupModel = calculateRollupModel(locations, rollupInputs);
+    const rollupModel = calculateRollupModel(reportLocations, rollupInputs);
     const companyRothModel = calculateRothModel(rollupModel, rollupInputs);
     const personalModel = calculatePersonalModel(rollupModel, rollupInputs);
     const personalWealth = buildPersonalWealthStatement({
@@ -2975,7 +3027,7 @@ export function App() {
         year: year.calendarYear,
       })),
     };
-  }, [locations, rollupInputs]);
+  }, [reportLocations, rollupInputs]);
   const activeScenarioLocations = locations;
 
   useEffect(() => {
@@ -3020,7 +3072,7 @@ export function App() {
       "Cash Flow After Interest Expense",
       "Operating Margin",
     ];
-    const rows = locationSetModel.months.map((m) => [
+    const rows = reportLocationSetModel.months.map((m) => [
       m.month,
       m.monthLabel,
       m.totalMembers.toFixed(1),
@@ -3115,6 +3167,11 @@ export function App() {
             />
           </div>
           <div>
+            <LocationReportSelector
+              locations={locations}
+              selectedLocationIds={selectedReportLocationIds}
+              setSelectedLocationIds={setSelectedReportLocationIds}
+            />
             <Dashboard model={locationFinancialModel} />
           </div>
         </section>
