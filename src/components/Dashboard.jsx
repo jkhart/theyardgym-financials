@@ -23,6 +23,29 @@ export function Dashboard({ model }) {
         ["operatingMargin", "Margin", "percent"],
       ],
     },
+    expenseDetail: {
+      title: "Expense Detail",
+      columns: [
+        ["royaltiesCost", "Royalties", "money"],
+        ["brandFundCost", "Brand Fund", "money"],
+        ["techFeeCost", "Tech Fee", "money"],
+        ["rent", "Rent", "money"],
+        ["trainerWages", "Trainer Wages", "money"],
+        ["frontDeskWages", "Front Desk", "money"],
+        ["managerCost", "Manager", "money"],
+        ["marketing", "Marketing", "money"],
+        ["repairs", "Repairs", "money"],
+        ["waterElectricCost", "Water / Electric", "money"],
+        ["phoneInternetCost", "Phone / Internet", "money"],
+        ["cleaningCost", "Cleaning", "money"],
+        ["insuranceCost", "Insurance", "money"],
+        ["accountingCost", "Accounting", "money"],
+        ["otherExpensesCost", "Other", "money"],
+        ["netTaxPayable", "Net Sales Tax", "money"],
+        ["ownerSalary", "Owner Salary", "money"],
+        ["totalExpenseBurden", "Total Expense Burden", "money"],
+      ],
+    },
     cashFlow: {
       title: "Cash Flow",
       columns: [
@@ -119,6 +142,9 @@ export function Dashboard({ model }) {
           (row.valuationTransactionCosts ?? 0) -
           (row.valuationSaleTaxes ?? 0)
       );
+    }
+    if (key === "totalExpenseBurden") {
+      return (row.totalExpenses ?? 0) + (row.netTaxPayable ?? 0);
     }
     return row[key] ?? 0;
   }

@@ -63,6 +63,25 @@ const FIXED_ROLLUP_INPUTS = {
   stateTaxRate: 0.0884,
 };
 
+const LOCATION_EXPENSE_KEYS = [
+  "royaltiesCost",
+  "brandFundCost",
+  "techFeeCost",
+  "rent",
+  "trainerWages",
+  "frontDeskWages",
+  "managerCost",
+  "marketing",
+  "repairs",
+  "waterElectricCost",
+  "phoneInternetCost",
+  "cleaningCost",
+  "insuranceCost",
+  "accountingCost",
+  "otherExpensesCost",
+  "netTaxPayable",
+];
+
 function normalizeRollupInputs(inputs) {
   const normalized = { ...DEFAULT_ROLLUP_INPUTS, ...inputs, ...FIXED_ROLLUP_INPUTS };
   normalized.downsideReturn = Number(normalized.downsideReturn ?? normalized.rothDownsideReturn ?? normalized.personalDownsideReturn) || 0;
@@ -274,6 +293,9 @@ function buildLocationSetModel(locations) {
             monthlySlots: total.monthlySlots + (row.monthlySlots ?? 0),
             labor: total.labor + (row.labor ?? 0),
             rent: total.rent + (row.rent ?? 0),
+            ...Object.fromEntries(
+              LOCATION_EXPENSE_KEYS.map((key) => [key, (total[key] ?? 0) + (row[key] ?? 0)]),
+            ),
           };
         },
         {
@@ -287,6 +309,7 @@ function buildLocationSetModel(locations) {
           monthlySlots: 0,
           labor: 0,
           rent: 0,
+          ...Object.fromEntries(LOCATION_EXPENSE_KEYS.map((key) => [key, 0])),
         },
       ),
     )
@@ -327,6 +350,7 @@ function buildLocationSetModel(locations) {
       monthlySlots: sum("monthlySlots"),
       labor: sum("labor"),
       rent: sum("rent"),
+      ...Object.fromEntries(LOCATION_EXPENSE_KEYS.map((key) => [key, sum(key)])),
       capitalAssets: rows.at(-1)?.capitalAssets ?? 0,
       totalAssets: rows.at(-1)?.totalAssets ?? 0,
       totalLiabilities: rows.at(-1)?.totalLiabilities ?? 0,
@@ -413,6 +437,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       valuationTransactionCosts: 0,
       valuationSaleTaxes: 0,
       valuationNetProceeds: 0,
+      ...Object.fromEntries(LOCATION_EXPENSE_KEYS.map((key) => [key, 0])),
     };
   };
   const months = Array.from({ length: horizonMonths }, (_, index) => emptyMonth(index));
@@ -439,6 +464,9 @@ function calculateRollupModel(locations, inputs, options = {}) {
       month.operatingRevenue += row.operatingRevenue ?? 0;
       month.totalExpenses += row.totalExpenses ?? 0;
       month.grossOperatingProfit += row.grossOperatingProfit ?? 0;
+      LOCATION_EXPENSE_KEYS.forEach((key) => {
+        month[key] += row[key] ?? 0;
+      });
     });
   });
 
@@ -591,6 +619,7 @@ function calculateRollupModel(locations, inputs, options = {}) {
       operatingRevenue,
       totalExpenses,
       grossOperatingProfit,
+      ...Object.fromEntries(LOCATION_EXPENSE_KEYS.map((key) => [key, sum(key)])),
       ownerSalary: sum("ownerSalary"),
       brokerageCashFromSalary: sum("brokerageCashFromSalary"),
       brokerageCashUsedForLiving: sum("brokerageCashUsedForLiving"),

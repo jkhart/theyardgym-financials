@@ -96,7 +96,10 @@ export function calculateModel(a, options = {}) {
       postPriceMembers * increasedPrice;
     const additionalRevenue = membershipRevenue * a.additionalRevenuePct;
     const operatingRevenue = membershipRevenue + additionalRevenue;
-    const tygPayments = operatingRevenue * (a.royalties + a.brandFund + a.techFee);
+    const royaltiesCost = operatingRevenue * a.royalties;
+    const brandFundCost = operatingRevenue * a.brandFund;
+    const techFeeCost = operatingRevenue * a.techFee;
+    const tygPayments = royaltiesCost + brandFundCost + techFeeCost;
     const rent =
       month <= a.freeRentMonths
         ? 0
@@ -122,10 +125,19 @@ export function calculateModel(a, options = {}) {
     const labor = trainerWages + frontDeskWages + managerCost;
     const marketing = Math.max(operatingRevenue * a.marketingPct, a.minMarketing * generalExpenseFactor);
     const repairs = operatingRevenue * a.repairsPct;
-    const utilities = (a.waterElectric + a.phoneInternet) * generalExpenseFactor;
+    const waterElectricCost = a.waterElectric * generalExpenseFactor;
+    const phoneInternetCost = a.phoneInternet * generalExpenseFactor;
+    const cleaningCost = a.cleaning * generalExpenseFactor;
+    const insuranceCost = a.insurance * generalExpenseFactor;
+    const accountingCost = a.accounting * generalExpenseFactor;
+    const otherExpensesCost = a.otherExpenses * generalExpenseFactor;
+    const utilities = waterElectricCost + phoneInternetCost;
     const fixedOps =
       utilities +
-      (a.cleaning + a.insurance + a.accounting + a.otherExpenses) * generalExpenseFactor;
+      cleaningCost +
+      insuranceCost +
+      accountingCost +
+      otherExpensesCost;
     const totalExpenses = tygPayments + rent + labor + marketing + repairs + fixedOps;
     const taxReceived = operatingRevenue * a.salesTax;
     const taxPaid = totalExpenses * a.salesTax;
@@ -150,6 +162,9 @@ export function calculateModel(a, options = {}) {
       membershipRevenue,
       additionalRevenue,
       operatingRevenue,
+      royaltiesCost,
+      brandFundCost,
+      techFeeCost,
       tygPayments,
       rent,
       labor,
@@ -164,7 +179,13 @@ export function calculateModel(a, options = {}) {
       managerCost,
       marketing,
       repairs,
+      waterElectricCost,
+      phoneInternetCost,
       utilities,
+      cleaningCost,
+      insuranceCost,
+      accountingCost,
+      otherExpensesCost,
       fixedOps,
       totalExpenses,
       taxReceived,
