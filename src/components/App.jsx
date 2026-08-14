@@ -2970,13 +2970,12 @@ export function App() {
     return {
       ...rollupModel,
       personalWealth,
-      totalInitialInvestment: locationSetModel.totalInitialInvestment,
       years: rollupModel.years.map((year) => ({
         ...year,
         year: year.calendarYear,
       })),
     };
-  }, [locationSetModel.totalInitialInvestment, locations, rollupInputs]);
+  }, [locations, rollupInputs]);
   const activeScenarioLocations = locations;
 
   useEffect(() => {
@@ -3041,12 +3040,6 @@ export function App() {
     link.click();
     URL.revokeObjectURL(url);
   }
-
-  const locationSetMeta = {
-    locationName: "Portfolio Locations",
-    scenarioName: `${locations.length} locations`,
-    projectedOpenDate: rollupInputs.modelStartDate,
-  };
 
   return (
     <main>
@@ -3122,7 +3115,7 @@ export function App() {
             />
           </div>
           <div>
-            <Dashboard model={locationFinancialModel} locationMeta={locationSetMeta} />
+            <Dashboard model={locationFinancialModel} />
           </div>
         </section>
       )}

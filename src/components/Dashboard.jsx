@@ -1,8 +1,8 @@
 import { Fragment, useState } from "react";
-import { BarChart3, Calculator } from "lucide-react";
+import { Calculator } from "lucide-react";
 import { money, pct } from "../lib/formatting.js";
 
-export function Dashboard({ model, locationMeta }) {
+export function Dashboard({ model }) {
   const [expandedYear, setExpandedYear] = useState(null);
   const [activeStatement, setActiveStatement] = useState("income");
 
@@ -133,30 +133,6 @@ export function Dashboard({ model, locationMeta }) {
 
   return (
     <section className="dashboard">
-      <div className="annualPanel">
-        <div className="panelTitle">
-          <BarChart3 size={18} />
-          <div>
-            <h2>{locationMeta.locationName}</h2>
-            <p>
-              {locationMeta.scenarioName} · Opens {locationMeta.projectedOpenDate}
-            </p>
-          </div>
-        </div>
-        <div className="annualGrid">
-          <article>
-            <span>Initial Investment</span>
-            <strong>{money.format(model.totalInitialInvestment)}</strong>
-            <dl>
-              <dt>Timing</dt>
-              <dd>6 months pre-open</dd>
-              <dt>Funding</dt>
-              <dd>Rollup model</dd>
-            </dl>
-          </article>
-        </div>
-      </div>
-
       <div className="tablePanel">
         <div className="statementHeader">
           <div className="panelTitle">
