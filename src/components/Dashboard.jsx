@@ -15,7 +15,7 @@ export function Dashboard({ model }) {
       title: "Income Statement",
       columns: [
         ["operatingRevenue", "Revenue", "money"],
-        ["totalExpenses", "Expenses", "money"],
+        ["totalExpenseBurden", "Expenses", "money"],
         ["grossOperatingProfit", "Operating Income", "money"],
         ["corporateDebtService", "Interest Expense", "money"],
         ["corporateTaxes", "Corp Taxes", "money"],
