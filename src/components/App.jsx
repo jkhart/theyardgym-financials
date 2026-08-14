@@ -1012,11 +1012,17 @@ function calculatePersonalModel(businessModel, inputs) {
   };
 }
 
+function formatPercentDraft(value) {
+  const percentValue = (Number(value) || 0) * 100;
+  if (!Number.isFinite(percentValue)) return "0";
+  return Number(percentValue.toFixed(6)).toString();
+}
+
 function PercentInput({ value, onChange }) {
-  const [draft, setDraft] = useState(() => String((Number(value) || 0) * 100));
+  const [draft, setDraft] = useState(() => formatPercentDraft(value));
 
   useEffect(() => {
-    setDraft(String((Number(value) || 0) * 100));
+    setDraft(formatPercentDraft(value));
   }, [value]);
 
   function updateDraft(nextDraft) {
